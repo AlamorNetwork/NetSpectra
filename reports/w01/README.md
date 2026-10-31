@@ -113,6 +113,9 @@ external destination. No captures or public probes are performed.
 
 WSL is not installed locally and the current process is not Administrator.
 No elevation or restart was attempted. Native Ubuntu/Windows CI is configured
-to run the smoke, independently of the local WSL setup. Hosted evidence pending.
+to run the smoke, independently of the local WSL setup. Both Ubuntu and Windows
+push CI passed for code commit f4da54a:
+https://github.com/AlamorNetwork/NetSpectra/actions/runs/41175594893
+Draft review: https://github.com/AlamorNetwork/NetSpectra/pull/1
 ADR-001 is proposed for independent review, not a claim that future privacy
 controls or namespace isolation are already implemented.
