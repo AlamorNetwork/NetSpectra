@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101416">
+  <meta name="description" content="پنل خصوصی آزمایش‌های پروتکل NetSpectra">
+  <meta name="robots" content="noindex,nofollow">
+  <title>NetSpectra · آزمایشگاه پروتکل</title>
+  <link rel="icon" href="/assets/mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/style.css">
+  <script type="module" src="/assets/app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">رفتن به محتوا</a>
+  <section id="login-screen" class="login-screen" aria-labelledby="login-title">
+    <div class="login-card">
+      <div class="brand" dir="ltr"><img src="/assets/mark.svg" alt="" width="30" height="30"><span>NetSpectra</span></div>
+      <h1 id="login-title">به آزمایشگاه وارد شوید</h1>
+      <p class="muted">فضای شما برای ساختن، اجرا و بررسی آزمایش‌ها.</p>
+      <form id="login-form">
+        <label for="username">نام کاربری</label>
+        <input id="username" name="username" autocomplete="username" dir="ltr" required value="admin">
+        <label for="password">رمز عبور</label>
+        <div class="password-field"><input id="password" name="password" type="password" autocomplete="current-password" dir="ltr" required><button class="icon-button" id="toggle-password" type="button" aria-label="نمایش رمز"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#eye"></use></svg></button></div>
+        <p id="login-error" class="form-error" role="alert" hidden></p>
+        <button id="login-submit" class="button primary full" type="submit">ورود به پنل<svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#arrow-left"></use></svg></button>
+      </form>
+      <div class="login-foot">آزمایش کنترل‌شده. نتیجهٔ قابل بررسی.</div>
+    </div>
+  </section>
+
+  <div id="app" class="app-shell" hidden>
+    <aside class="sidebar">
+      <a href="#experiments" class="brand" aria-label="NetSpectra، آزمایش‌ها" dir="ltr"><img src="/assets/mark.svg" alt="" width="30" height="30"><span>NetSpectra</span></a>
+      <div class="workspace"><span class="workspace-icon"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#flask-conical"></use></svg></span><div><strong>آزمایشگاه پروتکل</strong><small>فضای شخصی شما</small></div></div>
+      <nav aria-label="بخش‌های پنل">
+        <a href="#experiments" data-nav="experiments"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#flask-conical"></use></svg><span>آزمایش‌ها</span><span class="nav-count" id="nav-count">۰</span></a>
+        <a href="#runs" data-nav="runs"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#activity"></use></svg><span>تاریخچهٔ اجرا</span></a>
+        <a href="#guide" data-nav="guide"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#circle-help"></use></svg><span>روش کار</span></a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="scope-note"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#server"></use></svg><div><strong id="host-label">میزبان آزمایش</strong><small>فقط ترافیک محلی و مصنوعی</small></div></div>
+        <div class="profile"><span class="avatar">A</span><div><strong>مدیر آزمایشگاه</strong><small id="source-label" dir="ltr">NetSpectra</small></div><button id="logout" class="icon-button" aria-label="خروج از پنل"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#log-out"></use></svg></button></div>
+      </div>
+    </aside>
+
+    <div class="main-shell">
+      <header class="topbar"><div class="breadcrumb"><span>فضای آزمایش</span><svg class="tiny-icon" aria-hidden="true"><use href="/assets/icons.svg#chevron-left"></use></svg><span id="breadcrumb-current">آزمایش‌ها</span></div><div class="connection"><span class="status-dot"></span><span id="connection-label">متصل به میزبان</span></div></header>
+      <main id="main" tabindex="-1">
+        <div id="connection-error" class="notice error" role="alert" hidden><span>دریافت اطلاعات انجام نشد. اتصال را بررسی کنید.</span><button id="retry-connection" class="text-button">تلاش دوباره</button></div>
+        <div id="active-job" class="active-job" role="status" hidden><div class="active-copy"><span class="spinner"></span><div><strong id="active-title">آزمایش در حال اجراست</strong><small id="active-description">نتیجه بعد از پایان اینجا ثبت می‌شود.</small></div></div><button id="cancel-job" class="button danger-quiet"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#square"></use></svg><span>توقف اجرا</span></button></div>
+
+        <section id="view-experiments" aria-labelledby="experiments-title">
+          <div class="page-heading"><div><h1 id="experiments-title">آزمایش‌ها</h1><p>یک کانفیگ بسازید. اجرا کنید. نتیجه را ببینید.</p></div><button class="button primary" id="new-experiment"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#plus"></use></svg>آزمایش جدید</button></div>
+          <div class="overview-strip"><div class="hero-stat"><span class="stat-label">اجراهای موفق</span><div><strong id="success-count">۰</strong><span id="total-count">از ۰ اجرا</span></div></div><div class="overview-divider"></div><div class="overview-context"><span class="stat-label">آخرین فعالیت</span><strong id="latest-activity">هنوز اجرایی ثبت نشده</strong><div id="history-strip" class="history-strip" aria-label="نتیجهٔ اجراهای اخیر"></div></div><div class="overview-scope"><span class="soft-tag">محیط کنترل‌شده</span><p>TCP و UDP روی همین میزبان</p></div></div>
+          <div class="section-heading"><h2>کانفیگ‌های شما <span class="count" id="config-count">۰</span></h2><div class="list-tools"><label class="search"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#search"></use></svg><input id="experiment-search" aria-label="جست‌وجوی آزمایش" placeholder="جست‌وجو در آزمایش‌ها"></label><select id="protocol-filter" aria-label="فیلتر پروتکل"><option value="all">همهٔ پروتکل‌ها</option><option value="tcp">TCP</option><option value="udp">UDP</option></select></div></div>
+          <div id="experiments-loading" class="loading-state" role="status">در حال دریافت آزمایش‌ها…</div>
+          <div id="experiments-empty" class="empty-state" hidden><div class="empty-symbol"><svg aria-hidden="true"><use href="/assets/icons.svg#flask-conical"></use></svg></div><h3>اولین آزمایش شما از اینجا شروع می‌شود</h3><p>پروتکل و تعداد تکرار را انتخاب کنید؛ نتیجهٔ واقعی اجرا همین‌جا ثبت می‌شود.</p><button id="empty-new" class="button secondary"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#plus"></use></svg>ساخت اولین کانفیگ</button></div>
+          <div id="experiments-table-wrap" class="table-wrap" hidden><table><thead><tr><th>آزمایش</th><th>پروتکل</th><th>تکرار / seed</th><th>آخرین نتیجه</th><th><span class="sr-only">عملیات</span></th></tr></thead><tbody id="experiments-table"></tbody></table></div>
+          <p id="no-filter-results" class="empty-filter" hidden>آزمایشی با این فیلتر پیدا نشد.</p>
+          <div class="bottom-note"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#circle-help"></use></svg><span>اجراها فقط روی loopback هستند. هیچ ترافیکی به مقصد عمومی ارسال نمی‌شود.</span></div>
+        </section>
+
+        <section id="view-runs" aria-labelledby="runs-title" hidden>
+          <div class="page-heading"><div><h1 id="runs-title">تاریخچهٔ اجرا</h1><p>هر اجرا، یک نتیجهٔ مستقل و قابل بررسی.</p></div><button id="refresh-runs" class="button secondary"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#refresh-cw"></use></svg>به‌روزرسانی</button></div>
+          <div class="section-heading"><h2>اجراهای اخیر</h2><select id="status-filter" aria-label="فیلتر وضعیت اجرا"><option value="all">همهٔ وضعیت‌ها</option><option value="succeeded">موفق</option><option value="failed">ناموفق</option><option value="cancelled">متوقف‌شده</option></select></div>
+          <div id="runs-empty" class="empty-state" hidden><div class="empty-symbol"><svg aria-hidden="true"><use href="/assets/icons.svg#activity"></use></svg></div><h3>هنوز نتیجه‌ای ندارید</h3><p>یک آزمایش اجرا کنید تا نتیجه، تکرارها و تنظیماتش اینجا بماند.</p><a href="#experiments" class="button secondary">رفتن به آزمایش‌ها</a></div>
+          <div id="runs-table-wrap" class="table-wrap" hidden><table><thead><tr><th>آزمایش / شناسهٔ اجرا</th><th>وضعیت</th><th>نمونه‌ها</th><th>دادهٔ بازگشته</th><th>زمان</th><th><span class="sr-only">جزئیات</span></th></tr></thead><tbody id="runs-table"></tbody></table></div>
+          <p id="no-run-results" class="empty-filter" hidden>اجرایی با این وضعیت پیدا نشد.</p>
+        </section>
+
+        <section id="view-guide" aria-labelledby="guide-title" hidden><div class="page-heading"><div><h1 id="guide-title">کمتر تنظیم کنید، دقیق‌تر ببینید</h1><p>سه قدم برای کار با آزمایشگاه.</p></div></div><ol class="guide-steps"><li><span>۱</span><div><h2>کانفیگ را بسازید</h2><p>TCP یا UDP، تعداد تکرار و seed را انتخاب کنید. تنظیمات retry و زمان مجاز در بخش پیشرفته‌اند.</p></div></li><li><span>۲</span><div><h2>آزمایش را اجرا کنید</h2><p>یک اجرا در هر لحظه انجام می‌شود. می‌توانید آن را متوقف کنید؛ نتیجه و تلاش‌های انجام‌شده ثبت می‌شوند.</p></div></li><li><span>۳</span><div><h2>نتیجه را بررسی یا بازاجرا کنید</h2><p>از جزئیات، نمونه‌ها و تلاش‌ها را ببینید یا با replay همان ورودی را دوباره اجرا کنید. نتیجه و زمان می‌توانند متفاوت باشند.</p></div></li></ol><div class="guide-note"><h2>محدودهٔ فعلی</h2><p>این پنل آزمایش مصنوعی روی همین میزبان را اجرا می‌کند. تست سرعت اینترنت، ارسال ترافیک به IP دلخواه و ضبط PCAP هنوز فعال نیستند.</p><a href="https://github.com/AlamorNetwork/NetSpectra" target="_blank" rel="noopener noreferrer" class="text-button">مستندات و کد پروژه<svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#arrow-up-right"></use></svg></a></div></section>
+      </main>
+    </div>
+  </div>
+
+  <dialog id="config-dialog" class="config-dialog" aria-labelledby="config-title"><form id="config-form"><header class="dialog-heading"><div><span class="muted small">کانفیگ آزمایش</span><h2 id="config-title">یک آزمایش تازه بسازید</h2></div><button type="button" class="icon-button close-dialog" aria-label="بستن تنظیمات"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#x"></use></svg></button></header><div class="dialog-body"><label for="config-name">نام آزمایش</label><input id="config-name" maxlength="64" required placeholder="مثلاً بررسی پایهٔ TCP"><div class="form-grid"><div><label for="config-protocol">پروتکل</label><select id="config-protocol"><option value="tcp">TCP</option><option value="udp">UDP</option></select></div><div><label for="config-repetitions">تعداد تکرار</label><input id="config-repetitions" type="number" min="1" max="10" value="3" required></div><div><label for="config-seed">seed</label><input id="config-seed" type="number" min="0" max="4294967295" value="42" required aria-describedby="seed-help"></div><div class="field-help" id="seed-help">seed یکسان، همان ورودی مصنوعی را تولید می‌کند.</div></div><details class="advanced"><summary><span><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#settings-2"></use></svg>تنظیمات پیشرفته</span><svg class="tiny-icon" aria-hidden="true"><use href="/assets/icons.svg#chevron-left"></use></svg></summary><div class="form-grid"><div><label for="config-timeout">مهلت کل اجرا <small>ثانیه</small></label><input id="config-timeout" type="number" min="0.1" max="30" step="0.1" value="20" required></div><div><label for="config-attempt-timeout">مهلت هر تلاش <small>ثانیه</small></label><input id="config-attempt-timeout" type="number" min="0.1" max="30" step="0.1" value="5" required></div><div><label for="config-retries">تلاش مجدد</label><input id="config-retries" type="number" min="0" max="2" value="1" required></div><div><label for="config-delay">فاصلهٔ تلاش‌ها <small>ثانیه</small></label><input id="config-delay" type="number" min="0" max="1" step="0.01" value="0.05" required></div></div><p class="field-help">تلاش مجدد فقط برای خطای موقت است و از مهلت کل بیشتر نمی‌شود.</p></details><p id="config-error" class="form-error" role="alert" hidden></p><label class="checkbox-label"><input type="checkbox" id="run-after-save" checked>بعد از ذخیره، آزمایش را اجرا کن</label></div><footer class="dialog-footer"><button type="button" class="button secondary close-dialog">انصراف</button><button id="config-submit" type="submit" class="button primary">ذخیره و اجرا<svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#play"></use></svg></button></footer></form></dialog>
+
+  <dialog id="run-dialog" class="run-dialog" aria-labelledby="run-title"><header class="dialog-heading"><div><span class="muted small">گزارش آزمایش</span><h2 id="run-title">جزئیات اجرا</h2></div><button type="button" class="icon-button close-dialog" aria-label="بستن جزئیات"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#x"></use></svg></button></header><div id="run-detail" class="dialog-body"></div><footer class="dialog-footer"><button id="download-run" class="button secondary"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#download"></use></svg>دریافت JSON</button><button id="replay-run" class="button primary"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#refresh-cw"></use></svg>بازاجرای همین ورودی</button></footer></dialog>
+  <div id="toast" class="toast" role="status" hidden></div>
+</body>
+</html>

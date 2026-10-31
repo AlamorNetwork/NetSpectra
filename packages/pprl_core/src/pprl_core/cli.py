@@ -12,6 +12,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import threading
 import uuid
 from datetime import UTC, datetime
 from importlib import metadata, resources
@@ -142,7 +143,11 @@ def _atomic_write(path: Path, value: dict) -> dict:
 
 
 def create(root: Path, manifest: Path) -> dict:
-    record = _read(manifest)
+    return register(root, _read(manifest))
+
+
+def register(root: Path, record: dict) -> dict:
+    """Register a validated in-memory configuration using the same CLI store."""
     _validate(record, "experiment")
     directory = _path(root, "experiments", record["experiment_id"])
     directory.parent.mkdir(parents=True, exist_ok=True)
@@ -310,6 +315,7 @@ def run(
     *,
     _snapshot: dict | None = None,
     _replay_of: str | None = None,
+    _cancel_event: threading.Event | None = None,
 ) -> tuple[dict, int]:
     if isinstance(timeout, bool) or not math.isfinite(timeout) or not 0 < timeout <= 30:
         raise CLIError("invalid_timeout")
@@ -360,7 +366,7 @@ def run(
     observations = []
     attempts = []
 
-    async def execute() -> None:
+    async def perform() -> None:
         async with asyncio.timeout(timeout):
             for index, payload in enumerate(payloads):
                 for attempt in range(retries + 1):
@@ -396,10 +402,33 @@ def run(
                         observations.append(observation)
                         break
 
+    async def execute() -> None:
+        if _cancel_event is None:
+            await perform()
+            return
+        if _cancel_event.is_set():
+            raise asyncio.CancelledError
+        task = asyncio.create_task(perform())
+
+        async def watch() -> None:
+            while not _cancel_event.is_set():
+                await asyncio.sleep(0.05)
+            task.cancel()
+
+        watcher = asyncio.create_task(watch())
+        try:
+            await task
+        finally:
+            watcher.cancel()
+            try:
+                await watcher
+            except asyncio.CancelledError:
+                pass
+
     exit_code = 0
     try:
         asyncio.run(execute())
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, asyncio.CancelledError):
         record.update(status="cancelled", failure_reason="cancelled")
         exit_code = 130
     except Exception as error:
@@ -450,7 +479,12 @@ def run(
     return record, exit_code
 
 
-def replay(root: Path, identifier: str) -> tuple[dict, int]:
+def replay(
+    root: Path,
+    identifier: str,
+    *,
+    _cancel_event: threading.Event | None = None,
+) -> tuple[dict, int]:
     previous = inspect(root, identifier)
     if "run_id" not in previous:
         raise CLIError("replay_requires_run")
@@ -479,6 +513,7 @@ def replay(root: Path, identifier: str) -> tuple[dict, int]:
         **policy,
         _snapshot=snapshot,
         _replay_of=identifier,
+        _cancel_event=_cancel_event,
     )
 
 
