@@ -57,14 +57,19 @@ class Topology(BaseModel):
     clients: list[str] = Field(min_length=1, max_length=8)
     servers: list[str] = Field(min_length=1, max_length=8)
     load_balancer: str | None = None
-    protocol: Literal["tcp", "udp"] = "tcp"
+    protocol: Literal["tcp", "udp", "tls", "h3"] = "tcp"
     port: int = Field(default=28080, ge=28000, le=28999, strict=True)
     repetitions: int = Field(default=3, ge=1, le=10, strict=True)
     run_seed: int = Field(default=42, ge=0, le=4294967295, strict=True)
     capture: bool = Field(default=False, strict=True)
+    controlled_failure: bool = Field(default=False, strict=True)
 
     @model_validator(mode="after")
     def distinct_roles(self):
+        if self.protocol in {"tls", "h3"} and self.load_balancer:
+            raise ValueError("secure baseline requires direct paths")
+        if self.controlled_failure and self.protocol not in {"tls", "h3"}:
+            raise ValueError("certificate failure requires tls or h3")
         roles = self.clients + self.servers
         if len(set(self.clients)) != len(self.clients) or len(set(self.servers)) != len(
             self.servers

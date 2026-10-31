@@ -10,8 +10,11 @@ readme = "README.md"
 requires-python = ">=3.12,<3.13"
 license = "Apache-2.0"
 dependencies = [
-    "jsonschema>=4.26,<5", "rfc3339-validator>=0.1.4,<0.2",
-    "fastapi>=0.133,<0.134", "uvicorn>=0.41,<0.42",
+    "jsonschema>=4.26,<5",
+    "rfc3339-validator>=0.1.4,<0.2",
+    "fastapi>=0.133,<0.134",
+    "uvicorn>=0.41,<0.42",
+    "aioquic>=1.3,<2",
 ]
 
 [project.scripts]

@@ -5,6 +5,7 @@ import base64
 import contextlib
 import hashlib
 import json
+import math
 import secrets
 import threading
 import uuid
@@ -14,6 +15,7 @@ from pprl_core import cli
 from pprl_core.capture import flows_csv, redact_log, sanitize_pcap
 from pprl_core.cluster import Inventory
 from pprl_core.cluster_ssh import SSH
+from pprl_core.qlog import read_qlog
 from pprl_core.workload import seeded_payload
 
 
@@ -28,6 +30,7 @@ async def execute(
     nodes = {node["node_id"]: transport_node(node) for node in plan["nodes"]}
     processes = []
     captures = []
+    certificates = {}
     token = secrets.token_urlsafe(32)
     shared = {
         "token": token,
@@ -52,14 +55,18 @@ async def execute(
             response = json.loads(await asyncio.wait_for(process.stdout.readline(), 12))
             if not response.get("ready"):
                 raise cli.CLIError(response.get("error", "agent_not_ready"))
+            if role == "server" and definition["protocol"] in {"tls", "h3"}:
+                certificates[identifier] = response["certificate"]
         return process
 
     try:
         for node in nodes.values():
             checked = await transport.preflight(node)
             plan.setdefault("agent_reports", {})[node.node_id] = checked
-            if checked.get("agent_version") not in {1, 2}:
+            if checked.get("agent_version") not in {1, 2, 3}:
                 raise cli.CLIError("agent_version_mismatch")
+            if definition["protocol"] not in checked.get("protocols", ["tcp", "udp"]):
+                raise cli.CLIError("protocol_dependency_unavailable")
             if (
                 definition.get("capture")
                 and node.node_id
@@ -81,7 +88,11 @@ async def execute(
             else [nodes[n].address for n in definition["clients"]]
         )
         for server in definition["servers"]:
-            await launch(server, "server", {"peers": peers})
+            await launch(
+                server,
+                "server",
+                {"peers": peers, "public_address": nodes[server].address},
+            )
         if lb:
             await launch(
                 lb,
@@ -107,7 +118,17 @@ async def execute(
                 if not pairs:
                     continue
                 capture = await launch(
-                    identifier, "capture", {"pairs": pairs, "address_map": address_map}
+                    identifier,
+                    "capture",
+                    {
+                        "pairs": pairs,
+                        "address_map": address_map,
+                        "protocol": "udp"
+                        if definition["protocol"] == "h3"
+                        else "tcp"
+                        if definition["protocol"] == "tls"
+                        else definition["protocol"],
+                    },
                 )
                 captures.append((identifier, capture))
         for client in definition["clients"]:
@@ -121,27 +142,67 @@ async def execute(
                     {
                         "host": nodes[target].address,
                         "payloads": [payload.hex() for payload in payloads],
+                        **(
+                            {
+                                "certificate": certificates[target],
+                                "target_node": target,
+                                "controlled_failure": definition.get(
+                                    "controlled_failure", False
+                                ),
+                            }
+                            if definition["protocol"] in {"tls", "h3"}
+                            else {}
+                        ),
                     },
                 )
                 output, _ = await asyncio.wait_for(process.communicate(), 35)
                 result = json.loads(output)
-                if process.returncode or result.get("status") != "succeeded":
+                if process.returncode or "observations" not in result:
                     raise cli.CLIError(result.get("error", "remote_run_failed"))
                 samples = result["observations"]
-                if len(samples) != len(payloads):
+                if not isinstance(samples, list) or not 1 <= len(samples) <= len(
+                    payloads
+                ):
+                    raise cli.CLIError("invalid_remote_observation")
+                if (
+                    len(samples) != len(payloads)
+                    and result.get("status") == "succeeded"
+                ):
                     raise cli.CLIError("incomplete_remote_samples")
-                for sample, payload in zip(samples, payloads, strict=True):
+                for sample, payload in zip(samples, payloads, strict=False):
+                    if definition["protocol"] in {"tls", "h3"}:
+                        if sample.get("status") not in {"succeeded", "failed"}:
+                            raise cli.CLIError("invalid_remote_observation")
+                        for field in ["rtt_ms", "handshake_ms", "request_ms"]:
+                            value = sample.get(field)
+                            if (
+                                value is None
+                                and field != "rtt_ms"
+                                and sample["status"] == "failed"
+                            ):
+                                continue
+                            if (
+                                type(value) not in {float, int}
+                                or not math.isfinite(value)
+                                or not 0 <= value <= 60000
+                            ):
+                                raise cli.CLIError("invalid_remote_observation")
+                        if definition["protocol"] == "h3" and "qlog" not in sample:
+                            raise cli.CLIError("qlog_missing")
                     if (
                         sample["backend"] not in definition["servers"]
                         or (not lb and sample["backend"] != target)
                         or sample["client"] != client
-                        or sample["bytes_echoed"] != len(payload)
+                        or sample["bytes_echoed"]
+                        != (0 if sample.get("status") == "failed" else len(payload))
                         or sample["payload_sha256"]
                         != hashlib.sha256(payload).hexdigest()
                     ):
                         raise cli.CLIError("invalid_remote_observation")
                     sample["via"] = lb
                 observations.extend(samples)
+                if result.get("status") != "succeeded":
+                    raise cli.CLIError(result.get("error", "remote_run_failed"))
         return observations
     finally:
         for identifier, capture in captures:
@@ -214,6 +275,7 @@ def run(
         "workload_sha256": hashlib.sha256(b"".join(payloads)).hexdigest(),
         "failure_reason": None,
         "captures": [],
+        "qlogs": [],
     }
 
     async def perform():
@@ -280,7 +342,11 @@ def run(
                 data,
                 {ip: ip for ip in alias.values()},
                 pairs,
-                definition["protocol"],
+                "udp"
+                if definition["protocol"] == "h3"
+                else "tcp"
+                if definition["protocol"] == "tls"
+                else definition["protocol"],
                 definition["port"],
             )
             if (
@@ -307,6 +373,64 @@ def run(
         capture["csv_sha256"] = hashlib.sha256(csv_data).hexdigest()
         if capture["packets"] == 0 and record["status"] == "succeeded":
             record.update(status="failed", failure_reason="capture_empty")
+    for index, sample in enumerate(record["observations"]):
+        if sample.get("failure_reason"):
+            sample["failure_reason"] = redact_log(sample["failure_reason"])
+        document = sample.pop("qlog", None)
+        if document is None:
+            continue
+        try:
+            summary = read_qlog(document)
+            data = (
+                json.dumps(document, separators=(",", ":"), allow_nan=False) + "\n"
+            ).encode()
+            if len(data) > 600000:
+                raise ValueError("qlog_too_large")
+            trace_id = f"trace-{index:04d}"
+            folder = cli._path(root, "network-qlogs", record["run_id"])
+            folder.mkdir(parents=True, exist_ok=True)
+            (folder / (trace_id + ".qlog")).write_bytes(data)
+            record["qlogs"].append(
+                {
+                    "trace_id": trace_id,
+                    "sample_index": index,
+                    "sha256": hashlib.sha256(data).hexdigest(),
+                    **summary,
+                }
+            )
+        except (ValueError, TypeError, KeyError, AttributeError):
+            record.update(status="failed", failure_reason="qlog_integrity_failed")
+    if definition["protocol"] in {"tls", "h3"}:
+        good = [s for s in record["observations"] if s.get("status") == "succeeded"]
+        record["analysis"] = {
+            "observed": {
+                "successful_samples": len(good),
+                "failed_samples": len(record["observations"]) - len(good),
+                "timeouts": sum(
+                    s.get("timeout", False) for s in record["observations"]
+                ),
+                "retry_packets": sum(q["retry_packets"] for q in record["qlogs"])
+                if definition["protocol"] == "h3"
+                else None,
+            },
+            "derived": {
+                "mean_handshake_ms": sum(s["handshake_ms"] for s in good) / len(good)
+                if good
+                else None,
+                "mean_request_ms": sum(s["request_ms"] for s in good) / len(good)
+                if good
+                else None,
+            },
+            "hypothesis": (
+                "Path or implementation differences may affect timings; "
+                "a small baseline does not establish causality."
+            ),
+            "unknown": [
+                "one_way_latency",
+                "network_loss_rate",
+                "performance_under_load",
+            ],
+        }
     directory = cli._path(root, "network-runs")
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / (record["run_id"] + ".json")

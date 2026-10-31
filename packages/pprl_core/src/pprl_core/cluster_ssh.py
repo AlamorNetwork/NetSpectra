@@ -174,22 +174,36 @@ PYTHONPATH="$target/packages/pprl_core/src" python3 -m pprl_core.remote_agent ch
             [
                 "env",
                 f"PYTHONPATH={node.install_dir}/packages/pprl_core/src",
-                "python3",
-                "-m",
-                "pprl_core.remote_agent",
+                "sh",
+                "-c",
+                'if test -x "$1/.venv/bin/python"; then '
+                'interpreter="$1/.venv/bin/python"; else interpreter=python3; fi; '
+                'exec "$interpreter" -m pprl_core.remote_agent "$2"',
+                "netspectra-agent",
+                node.install_dir,
                 role,
             ],
         )
 
     async def preflight(self, node: Node) -> dict:
+        command = self.agent_command(node, "check")
+        # execute expects the remote argv, while agent_command includes SSH argv.
+        return await self.execute(node, shlex.split(command[-1]))
+
+    async def install_dependencies(self, node: Node) -> dict:
+        script = """set -eu
+target="$1"
+test -d "$target/.git"
+test ! -L "$target/.venv"
+test -f "$target/worker-requirements.txt"
+umask 077
+if test ! -e "$target/.venv"; then python3 -m venv --without-pip "$target/.venv"; fi
+python3 -m pip --python "$target/.venv/bin/python" install --quiet \
+  --disable-pip-version-check --require-hashes --only-binary=:all: \
+  -r "$target/worker-requirements.txt" >&2
+PYTHONPATH="$target/packages/pprl_core/src" \
+  "$target/.venv/bin/python" -m pprl_core.remote_agent check
+"""
         return await self.execute(
-            node,
-            [
-                "env",
-                f"PYTHONPATH={node.install_dir}/packages/pprl_core/src",
-                "python3",
-                "-m",
-                "pprl_core.remote_agent",
-                "check",
-            ],
+            node, ["sh", "-c", script, "netspectra-dependencies", node.install_dir], 240
         )

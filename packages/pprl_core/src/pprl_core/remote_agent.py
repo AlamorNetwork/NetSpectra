@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import hmac
+import importlib.util
 import ipaddress
 import json
 import os
@@ -59,7 +60,7 @@ def exchange(protocol: str, host: str, port: int, data: bytes) -> bytes:
 
 
 def validate(config: dict, role: str) -> dict:
-    if config.get("protocol") not in {"tcp", "udp"}:
+    if config.get("protocol") not in {"tcp", "udp", "tls", "h3"}:
         raise ValueError("invalid_protocol")
     if (
         not isinstance(config.get("token"), str)
@@ -73,6 +74,14 @@ def validate(config: dict, role: str) -> dict:
         raise ValueError("invalid_node")
     if role == "client":
         config["host"] = str(ipaddress.IPv4Address(config["host"]))
+        if config["protocol"] in {"tls", "h3"}:
+            if (
+                not isinstance(config.get("certificate"), str)
+                or len(config["certificate"]) > 4096
+                or not isinstance(config.get("target_node"), str)
+                or type(config.get("controlled_failure", False)) is not bool
+            ):
+                raise ValueError("invalid_certificate_config")
         payloads = config.get("payloads", [])
         if not 1 <= len(payloads) <= 10:
             raise ValueError("invalid_workload")
@@ -83,6 +92,10 @@ def validate(config: dict, role: str) -> dict:
             ):
                 raise ValueError("invalid_payload")
     else:
+        if config["protocol"] in {"tls", "h3"}:
+            config["public_address"] = str(
+                ipaddress.IPv4Address(config["public_address"])
+            )
         config["bind_address"] = str(
             ipaddress.IPv4Address(config.get("bind_address", "0.0.0.0"))
         )
@@ -208,7 +221,7 @@ def main() -> int:
         print(
             json.dumps(
                 {
-                    "agent_version": 2,
+                    "agent_version": 3,
                     "capture_available": bool(
                         shutil.which("tcpdump") and shutil.which("timeout")
                     ),
@@ -217,7 +230,8 @@ def main() -> int:
                     else None,
                     "python": platform.python_version(),
                     "os": platform.system(),
-                    "protocols": ["tcp", "udp"],
+                    "protocols": ["tcp", "udp"]
+                    + (["tls", "h3"] if importlib.util.find_spec("aioquic") else []),
                 }
             )
         )
@@ -233,6 +247,17 @@ def main() -> int:
             print(json.dumps(result), flush=True)
             return 0
         config = validate(json.loads(line), args.role)
+        if config["protocol"] in {"tls", "h3"}:
+            from pprl_core.secure_agent import session
+
+            if sys.platform == "linux":
+                import resource
+
+                resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+
+            result = session(config, args.role)
+            print(json.dumps(result), flush=True)
+            return 0
         result = (
             client(config)
             if args.role == "client"

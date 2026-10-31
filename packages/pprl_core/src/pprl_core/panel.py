@@ -169,7 +169,7 @@ class Controller:
     ) -> dict:
         if kind == "network":
             self.inventory.plan(self.inventory.topology(identifier))
-        elif kind in {"bootstrap", "preflight"}:
+        elif kind in {"bootstrap", "preflight", "dependencies"}:
             self.inventory.node(identifier)
         elif kind is None:
             cli.inspect(self.root, identifier)
@@ -208,13 +208,15 @@ class Controller:
             target = self.jobs[identifier]["target"]
             kind = self.jobs[identifier]["kind"]
         try:
-            if kind in {"bootstrap", "preflight"}:
+            if kind in {"bootstrap", "preflight", "dependencies"}:
                 node = self.inventory.node(target)
                 if kind == "bootstrap":
                     source = cli._source_metadata()
                     if source["dirty"]:
                         raise cli.CLIError("clean_source_required")
                     result = asyncio.run(self.ssh.bootstrap(node, source["git_sha"]))
+                elif kind == "dependencies":
+                    result = asyncio.run(self.ssh.install_dependencies(node))
                 else:
                     result = asyncio.run(self.ssh.preflight(node))
                 outcome = {"status": "succeeded", "error": None, "result": result}
@@ -236,7 +238,7 @@ class Controller:
                 result, _ = cli.replay(self.root, target, _cancel_event=event)
             else:
                 result, _ = cli.run(self.root, target, **policy, _cancel_event=event)
-            if kind not in {"bootstrap", "preflight", "network"}:
+            if kind not in {"bootstrap", "preflight", "dependencies", "network"}:
                 outcome = {
                     "status": result["status"],
                     "run_id": result["run_id"],
@@ -585,6 +587,29 @@ def create_app(root: Path, allowed_hosts: list[str] | None = None) -> FastAPI:
     def run_topology(identifier: str, body: NetworkExecution, request: Request):
         return request.app.state.controller.start(
             identifier, kind="network", capture_override=body.capture
+        )
+
+    @api.post("/cluster/nodes/{identifier}/dependencies", status_code=202)
+    def install_dependencies(identifier: str, request: Request):
+        return request.app.state.controller.start(identifier, kind="dependencies")
+
+    @api.get("/cluster/runs/{identifier}/qlog/{trace_id}")
+    def qlog_file(identifier: str, trace_id: str, request: Request):
+        record = request.app.state.controller.network_record(identifier)
+        artifact = next(
+            (q for q in record.get("qlogs", []) if q["trace_id"] == trace_id), None
+        )
+        if artifact is None:
+            raise HTTPException(404, "qlog_not_found")
+        path = cli._path(root, "network-qlogs", identifier, trace_id + ".qlog")
+        if not hmac.compare_digest(
+            hashlib.sha256(path.read_bytes()).hexdigest(), artifact["sha256"]
+        ):
+            raise cli.CLIError("qlog_integrity_failed")
+        return FileResponse(
+            path,
+            media_type="application/json",
+            filename=identifier + "-" + trace_id + ".qlog",
         )
 
     @api.get("/cluster/runs/{identifier}")
