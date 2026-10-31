@@ -76,6 +76,8 @@ async def execute(
         for client in definition["clients"]:
             targets = [lb] if lb else definition["servers"]
             for target in targets:
+                if target == client:
+                    continue
                 process = await launch(
                     client,
                     "client",
@@ -94,6 +96,7 @@ async def execute(
                 for sample, payload in zip(samples, payloads, strict=True):
                     if (
                         sample["backend"] not in definition["servers"]
+                        or (not lb and sample["backend"] != target)
                         or sample["client"] != client
                         or sample["bytes_echoed"] != len(payload)
                         or sample["payload_sha256"]

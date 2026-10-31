@@ -14,8 +14,9 @@ Without a load balancer the runner measures the Cartesian product of selected
 clients and servers. With a load balancer, selected clients connect to a temporary
 round-robin TCP/UDP lab relay, which forwards to the selected backends. The relay
 is a lab instrument, not an HAProxy/nginx production service or an HTTP benchmark.
-Each node has one role in a topology. At least two nodes are needed for a direct
-path, and three for a balanced path. The inventory supports 32 nodes; a topology
+Clients and backends may share a node; direct self-pairs are excluded from both
+the plan and execution. The relay must have its own node. Two nodes suffice for
+a client/backend node communicating through a separate relay. The inventory supports 32 nodes; a topology
 supports up to 8 clients, 8 backends, and one relay.
 
 SSH carries installation/control commands only. Synthetic test packets travel

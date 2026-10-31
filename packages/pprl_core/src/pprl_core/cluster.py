@@ -65,10 +65,14 @@ class Topology(BaseModel):
     @model_validator(mode="after")
     def distinct_roles(self):
         roles = self.clients + self.servers
-        if self.load_balancer:
-            roles.append(self.load_balancer)
-        if len(roles) != len(set(roles)):
-            raise ValueError("each selected node must have one role per topology")
+        if len(set(self.clients)) != len(self.clients) or len(set(self.servers)) != len(
+            self.servers
+        ):
+            raise ValueError("duplicate nodes within one role")
+        if self.load_balancer and self.load_balancer in roles:
+            raise ValueError("the relay must have its own node")
+        if len(set(roles + ([self.load_balancer] if self.load_balancer else []))) < 2:
+            raise ValueError("at least two distinct network nodes are required")
         return self
 
 
@@ -162,6 +166,7 @@ class Inventory:
                 (client, server)
                 for client in topology.clients
                 for server in topology.servers
+                if client != server
             ]
         return {
             "scope": "selected_owned_nodes",

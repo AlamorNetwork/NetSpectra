@@ -295,7 +295,7 @@ def test_cluster_api_authentication_inventory_and_role_validation(tmp_path):
 
 
 @pytest.mark.parametrize("protocol", ["tcp", "udp"])
-@pytest.mark.parametrize("balanced", [False, True])
+@pytest.mark.parametrize("balanced", [False, True, "shared"])
 def test_orchestrator_real_children_direct_and_balanced(tmp_path, protocol, balanced):
     inventory = Inventory(tmp_path)
     for index in range(1, 5):
@@ -303,7 +303,7 @@ def test_orchestrator_real_children_direct_and_balanced(tmp_path, protocol, bala
     definition = Topology(
         name="integration",
         clients=["n1"],
-        servers=["n2", "n3"],
+        servers=["n1"] if balanced == "shared" else ["n2", "n3"],
         load_balancer="n4" if balanced else None,
         protocol=protocol,
         port=available_port("127.0.0.2"),
@@ -340,7 +340,8 @@ print(json.dumps(result),flush=True)
         )
     )
     assert len(result) == (2 if balanced else 4)
-    assert {sample["backend"] for sample in result} == {"n2", "n3"}
+    expected = {"n1"} if balanced == "shared" else {"n2", "n3"}
+    assert {sample["backend"] for sample in result} == expected
     assert all(sample["via"] == ("n4" if balanced else None) for sample in result)
 
 
@@ -359,3 +360,21 @@ def test_inventory_edit_invalidates_pin_when_ssh_destination_changes(tmp_path):
         ]
         == ""
     )
+
+
+def test_shared_client_backend_role_uses_network_hops_and_excludes_self_pairs(tmp_path):
+    inventory = Inventory(tmp_path)
+    inventory.add_node(node("iran", "87.107.146.217"))
+    inventory.add_node(node("eu", "54.36.113.36"))
+    direct = Topology(name="both", clients=["iran", "eu"], servers=["iran", "eu"])
+    assert inventory.plan(direct)["edges"] == [
+        {"from": "iran", "to": "eu"},
+        {"from": "eu", "to": "iran"},
+    ]
+    balanced = Topology(
+        name="relay", clients=["iran"], servers=["iran"], load_balancer="eu"
+    )
+    assert inventory.plan(balanced)["edges"] == [
+        {"from": "iran", "to": "eu"},
+        {"from": "eu", "to": "iran"},
+    ]
