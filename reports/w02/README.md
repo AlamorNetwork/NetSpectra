@@ -76,3 +76,21 @@ Input hashes match per protocol:
 These are input-plan fingerprints, not timing or outcome guarantees. No public
 ports, namespace topology or remote-target traffic are introduced. Server and
 CI evidence for the committed revision follows after synchronization.
+
+### Ubuntu server verification for seeded endpoints
+
+Code a9b122215d07175a8822429ab3bc4ca20e8b4ee7 was received only via
+fast-forward Git pull. Ubuntu 24 / pinned Python 3.12.12: locked sync passes;
+Ruff and formatting pass; 121 tests pass in 4.89s; old and seeded CLI smokes
+succeed; source and wheel builds succeed. Source tree is clean and server HEAD
+equals the GitHub branch. No manual source files were created on the server.
+
+TCP and UDP each echo 734 bytes across 3 samples, for both initial run and replay.
+The input fingerprints exactly match Windows: TCP 7be443ff...d91b85 and UDP
+3583ed68...7aeba60 (full values above). Endpoint PIDs/ports are deliberately not
+compared. This is independent-platform execution by the agent, not an external
+human review or proof of namespace isolation.
+
+Hosted CI for this source revision:
+https://github.com/AlamorNetwork/NetSpectra/actions/runs/41182496861
+The final evidence-only update is subsequently pulled and equality checked.
