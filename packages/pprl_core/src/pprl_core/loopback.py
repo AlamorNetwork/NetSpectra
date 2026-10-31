@@ -87,14 +87,21 @@ async def _udp_probe() -> dict:
     return {"protocol": "udp", "bytes_echoed": len(echoed), "status": "succeeded"}
 
 
-async def probe_loopback(timeout: float = 5.0) -> dict:
+async def probe_loopback(
+    timeout: float = 5.0, protocols: tuple[str, ...] = ("tcp", "udp")
+) -> dict:
     """Echo a fixed synthetic payload over TCP and UDP under one deadline."""
     if isinstance(timeout, bool) or not math.isfinite(timeout) or not 0 < timeout <= 30:
         raise ValueError(
             "timeout must be finite, greater than 0 and at most 30 seconds"
         )
+    if not protocols or len(set(protocols)) != len(protocols):
+        raise ValueError("protocols must be nonempty and unique")
+    if any(protocol not in {"tcp", "udp"} for protocol in protocols):
+        raise ValueError("only tcp and udp loopback probes are supported")
     async with asyncio.timeout(timeout):
-        results = [await _tcp_probe(), await _udp_probe()]
+        probes = {"tcp": _tcp_probe, "udp": _udp_probe}
+        results = [await probes[protocol]() for protocol in protocols]
     return {
         "scope": "ipv4_loopback_only",
         "platform": platform.system(),

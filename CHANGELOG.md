@@ -2,6 +2,10 @@
 
 ## 0.1.0 — Unreleased
 
+- Add local create/list/run/inspect CLI, configuration snapshots, UUID/UTC/source
+  metadata and checksummed artifact manifests for bounded loopback runs.
+- Persist timeout/failure/cancellation categories; reject unsupported scenarios
+  and detect artifact changes. Add CLI smoke to Windows/Ubuntu CI.
 - Add bounded IPv4 loopback TCP/UDP smoke and timeout/cancellation cleanup tests.
 - Run loopback smoke in Ubuntu/Windows CI; document pending local WSL setup.
 - Record proposed lab/consent/data policy in ADR-001 for independent review.

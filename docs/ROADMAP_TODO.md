@@ -427,3 +427,16 @@ Do not implement later sprints, collect external user traffic, or access endpoin
 | PPRL-M01-W01-T06 | REVIEW | ADR-001 درباره lab-only و رضایت و داده حساس ثبت شد؛ بازبینی مستقل مانده |
 
 جزئیات: `weekly/W01.md` و `../reports/w01/README.md`. موارد بالا هنوز Done نیستند.
+
+## W02 — اجرای اولیه CLI
+
+| شناسه | وضعیت | شاهد / محدودیت |
+|---|---|---|
+| PPRL-M01-W02-T01 | REVIEW | create/list/run/inspect و تست مسیر کامل؛ اجرای فعلی فقط loopback |
+| PPRL-M01-W02-T02 | REVIEW | UUID و UTC و Git SHA و نسخه محیط؛ dirty بودن در summary ثبت می‌شود |
+| PPRL-M01-W02-T03 | REVIEW | snapshot و پوشه Run و manifest هش/اندازه؛ بررسی یکپارچگی خروجی |
+| PPRL-M01-W02-T04 | TODO | دو endpoint جدا هنوز پیاده‌سازی نشده |
+| PPRL-M01-W02-T05 | IN_PROGRESS | timeout و cancellation و دسته خطا موجود؛ retry/resume مانده |
+| PPRL-M01-W02-T06 | IN_PROGRESS | مقایسه تکرار workload ثابت تست شده؛ replay عمومی مبتنی بر seed مانده |
+
+جزئیات: `weekly/W02.md` و `../reports/w02/README.md`. گیت بازبینی مستقل هنوز تأیید نشده است.

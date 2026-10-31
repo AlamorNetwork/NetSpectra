@@ -24,5 +24,7 @@ artifacts/
 reports/w*/
 !reports/w01/
 !reports/w01/README.md
+!reports/w02/
+!reports/w02/README.md
 .DS_Store
 Thumbs.db

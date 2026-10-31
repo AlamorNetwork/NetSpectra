@@ -2,6 +2,9 @@
 
 [فارسی](README.fa.md)
 
+The [W02 CLI](clients/cli/README.md) supports create/list/run/inspect with
+versioned manifests, provenance, checksums and bounded loopback execution.
+
 A research lab for reproducible measurements of TCP, TLS, QUIC and HTTP/3 under
 controlled impairment and simulated DPI. Measurements use lab-owned endpoints
 and synthetic traffic by default. Results distinguish observed facts, derived
