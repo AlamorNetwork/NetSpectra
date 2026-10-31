@@ -9,3 +9,29 @@ dialog{background:var(--surface);color:var(--text);border:1px solid #3b4840;bord
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 .cluster-section{margin-top:36px}.cluster-key textarea{width:100%;margin:16px 0;padding:12px;background:var(--page);border:1px solid var(--line);color:var(--secondary);font:11px/1.8 var(--mono);resize:vertical}.cluster-key .button{margin-bottom:15px}.topology-row{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:20px 0;border-top:1px solid var(--line)}.topology-row strong{font-size:14px}.topology-row p{margin:6px 0}.node-selection{border:1px solid var(--line);border-radius:7px;padding:12px}.node-selection legend{font-size:12px;color:var(--secondary)}.node-selection .checkbox-label{margin:5px 0}.cluster-key summary{gap:20px}@media(max-width:800px){.sidebar nav{overflow-x:auto}.sidebar nav a{flex-shrink:0}.topology-row{align-items:flex-start}}
 .capture-report{border-top:1px solid var(--line);padding-top:20px;margin-top:20px}.capture-report>.small{margin:7px 0}.capture-report>.row-actions{justify-content:flex-start;margin-top:13px}.capture-report .advanced{margin-bottom:12px}.capture-report td:first-child{min-width:150px}@media(max-width:800px){.topology-row>.row-actions{flex-wrap:wrap;max-width:155px}.topology-row>.row-actions .button{width:100%}}
+
+/* Independent workspaces, grouped navigation and a mobile disclosure menu. */
+.sidebar-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.menu-toggle{display:none}
+.sidebar nav{gap:12px}
+.nav-group{display:flex;flex-direction:column;gap:4px}
+.nav-group-label{font-size:10px;color:var(--muted);padding:7px 13px 3px}
+.pagination{display:flex;align-items:center;justify-content:space-between;gap:16px;border-top:1px solid var(--line);padding:20px 0 0;margin-top:10px}
+.pagination p{font-size:11px;color:var(--muted)}
+.pagination>div{display:flex;gap:8px}
+.pagination .button{font-size:11px;min-height:38px;padding:8px 13px}
+#view-paths .list-tools,#view-network-results .list-tools{max-width:100%}
+#view-servers .bottom-note,#view-paths .bottom-note{flex-wrap:wrap;gap:5px}
+@media(max-width:800px){
+  .sidebar{padding-bottom:16px}
+  .sidebar-heading .brand{margin:0;font-size:19px}
+  .menu-toggle{display:inline-flex;min-height:44px}
+  .sidebar #panel-navigation{flex-direction:column;gap:10px;padding:16px 0 0;max-height:65dvh;overflow-y:auto;overflow-x:hidden}
+  .sidebar:not(.menu-open) #panel-navigation{display:none}
+  .sidebar nav a{min-height:44px;font-size:13px;padding:10px 14px}
+  .sidebar nav .nav-count{display:inline-block}
+  .nav-group-label{font-size:11px;padding-top:10px}
+  .pagination{flex-wrap:wrap}
+  #view-paths .list-tools,#view-network-results .list-tools{flex-wrap:wrap}
+  #view-paths .list-tools>select,#view-network-results .list-tools>select{max-width:none;width:auto;min-width:130px;min-height:40px}
+}

@@ -6,7 +6,7 @@ const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&am
 const icon = (name) => `<svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#${name}"></use></svg>`;
 const labels = {succeeded:'موفق',failed:'ناموفق',cancelled:'متوقف‌شده',running:'در حال اجرا',cancelling:'در حال توقف',interrupted:'ناتمام',integrity_error:'نیاز به بررسی'};
 const reasons = {timeout:'مهلت اجرا تمام شد.',loopback_error:'اتصال محلی کامل نشد.',payload_mismatch:'پاسخ با ورودی آزمایش یکسان نبود.',endpoint_io_error:'ارتباط با endpoint انجام نشد.',endpoint_transient_error:'ارتباط موقتاً قطع شد.',endpoint_protocol_error:'پاسخ endpoint معتبر نبود.',internal_error:'اجرا به خطای داخلی رسید.',cancelled:'اجرا به درخواست شما متوقف شد.',runner_busy:'یک آزمایش در حال اجراست. تا پایان آن صبر کنید.',replay_definition_mismatch:'این اجرا با نسخهٔ فعلی قابل بازاجرا نیست.',storage_or_io_error:'خواندن یا ذخیرهٔ داده انجام نشد.',invalid_input:'نام و مقدارهای کانفیگ را بررسی کنید.',authentication_required:'دوباره وارد پنل شوید.',invalid_credentials:'نام کاربری یا رمز عبور درست نیست.',login_rate_limited:'تعداد تلاش‌های ورود زیاد شده است. پنج دقیقه بعد امتحان کنید.',server_restarted:'سرویس هنگام اجرا دوباره راه‌اندازی شد.',artifact_integrity_failed:'فایل خروجی تغییر کرده و قابل تأیید نیست.'};
-let state = null, detail = null, previousState = '', currentView = 'experiments';
+let state = null, detail = null, previousState = '', currentView = 'servers';
 let refreshVersion = 0, poller = null, toastTimer = null, lastActive = null;
 
 function status(value) {
@@ -65,15 +65,42 @@ async function refresh() {
     $('experiments-loading').hidden = true;
   }
 }
-function setView() {
-  const value = location.hash.slice(1); currentView = ['cluster','experiments','runs','guide'].includes(value) ? value : 'cluster';
-  for (const view of ['cluster','experiments','runs','guide']) {
-    $(`view-${view}`).hidden = view !== currentView;
-    const nav = document.querySelector(`[data-nav="${view}"]`);
-    if (view === currentView) nav.setAttribute('aria-current','page'); else nav.removeAttribute('aria-current');
-  }
-  $('breadcrumb-current').textContent = {cluster:'سرورها و مسیرها',experiments:'آزمایش‌های محلی',runs:'تاریخچهٔ اجرا',guide:'روش کار'}[currentView];
+const views = {servers:'سرورها',paths:'مسیرهای آزمایش','network-results':'نتایج بین سرورها',experiments:'تست محلی',runs:'نتایج محلی',guide:'راهنمای کار'};
+function closeMenu() {
+  document.querySelector('.sidebar').classList.remove('menu-open');
+  $('menu-toggle').setAttribute('aria-expanded','false');
 }
+function setView() {
+  const requested=location.hash.slice(1);
+  const next=Object.hasOwn(views,requested)?requested:'servers';
+  const changed=next!==currentView;
+  currentView=next;
+  if(requested==='cluster')history.replaceState(null,'','#servers');
+  for(const view of Object.keys(views)) {
+    $(`view-${view}`).hidden=view!==currentView;
+    const nav=document.querySelector(`[data-nav="${view}"]`);
+    if(view===currentView)nav.setAttribute('aria-current','page');else nav.removeAttribute('aria-current');
+  }
+  $('breadcrumb-current').textContent=views[currentView];
+  document.title=`${views[currentView]} · NetSpectra`;
+  closeMenu();
+  if(changed&&!$('app').hidden) { window.scrollTo(0,0);$('main').focus({preventScroll:true}); }
+}
+$('menu-toggle').addEventListener('click',()=>{
+  const expanded=$('menu-toggle').getAttribute('aria-expanded')!=='true';
+  $('menu-toggle').setAttribute('aria-expanded',String(expanded));
+  document.querySelector('.sidebar').classList.toggle('menu-open',expanded);
+});
+$('panel-navigation').addEventListener('click',event=>{
+  const link=event.target.closest('a');
+  if(link) {closeMenu();if(link.hash===location.hash){window.scrollTo(0,0);$('main').focus({preventScroll:true});}}
+});
+document.addEventListener('keydown',event=>{
+  if(event.key==='Escape'&&$('menu-toggle').getAttribute('aria-expanded')==='true') {
+    closeMenu();$('menu-toggle').focus();
+  }
+});
+document.querySelector('.skip-link').addEventListener('click',event=>{event.preventDefault();$('main').focus();});
 function nameOf(identifier) { return state?.experiments.find(item => item.experiment_id === identifier)?.name || identifier; }
 function render() {
   if (!state) return;
@@ -85,9 +112,10 @@ function render() {
   const active = state.active_job;
   $('active-job').hidden = !active;
   if (active) {
-    $('cancel-job').hidden = ['bootstrap','preflight'].includes(active.kind);
+    $('cancel-job').hidden = ['bootstrap','preflight','dependencies'].includes(active.kind);
     $('active-title').textContent = active.status === 'cancelling' ? 'در حال توقف آزمایش…' : active.kind === 'replay' ? 'در حال بازاجرای ورودی قبلی…' : `در حال اجرا: ${nameOf(active.target)}`;
     if (active.kind === 'bootstrap') $('active-title').textContent = `در حال نصب ابزار اجرا: ${active.target}`;
+    if (active.kind === 'dependencies') $('active-title').textContent = `در حال نصب ابزار QUIC: ${active.target}`;
     if (active.kind === 'preflight') $('active-title').textContent = `در حال بررسی SSH: ${active.target}`;
     if (active.kind === 'network') $('active-title').textContent = 'در حال آزمایش ارتباط بین سرورها…';
     $('active-description').textContent = 'نتیجه و تلاش‌ها بعد از پایان ثبت می‌شوند.';

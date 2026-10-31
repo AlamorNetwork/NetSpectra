@@ -3,6 +3,7 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;',
 const num = value => new Intl.NumberFormat('fa-IR', {maximumFractionDigits:2}).format(value);
 const errors = {protocol_dependency_unavailable:'ابتدا ابزارهای QUIC را روی سرورهای انتخابی نصب کنید.',certificate_verification_failed:'گواهی تأیید نشد.',quic_or_tls_handshake_failed:'اتصال امن برقرار نشد؛ نتیجهٔ ضبط و جهت مسیر را بررسی کنید.',handshake_timeout:'مهلت برقراری اتصال تمام شد.',request_timeout:'مهلت دریافت پاسخ تمام شد.',duplicate_node:'این شناسه یا IP قبلاً ثبت شده است.',node_not_found:'سرور پیدا نشد.',host_key_required:'ابتدا کلید میزبان همهٔ سرورها را بررسی و ثبت کنید.',controller_key_required:'ابتدا کلید کنترل‌کننده را بسازید و دسترسی آن را روی سرور مقصد ثبت کنید.',ssh_command_failed:'اتصال SSH یا دستور نصب انجام نشد. دسترسی کلید، ابزارهای git و python3 و تازه بودن پوشه را بررسی کنید.',ssh_host_unreachable:'پورت SSH پاسخ نداد.',invalid_input:'مقادیر فرم و متمایز بودن نقش‌ها را بررسی کنید.',runner_busy:'یک عملیات در حال اجراست.',port_in_use:'پورت انتخابی اشغال است؛ هیچ سرویس دیگری متوقف نشد.',host_key_change_requires_operator:'کلید ثبت‌شده تغییر کرده است؛ پیش از اتصال هویت میزبان را بررسی کنید.',clean_source_required:'نسخهٔ کنترل‌کننده باید در گیت ثبت شده باشد.'};
 let current = null, pin = null, editingNode = null;
+let pathsPage=0, networkPage=0;
 function message(text) { const box=$('toast'); box.textContent=text; box.hidden=false; setTimeout(()=>{box.hidden=true;},7000); }
 async function call(path, body) {
   const response = await fetch('/api/cluster'+path,{method:body===undefined?'GET':'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-NetSpectra-Client':'panel'},...(body===undefined?{}:{body:JSON.stringify(body)})});
@@ -14,17 +15,37 @@ function title(id) { return current?.cluster.nodes.find(n=>n.node_id===id)?.name
 export function renderCluster(state) {
   current=state;
   const {nodes,topologies}=state.cluster;
+  $('nav-nodes-count').textContent=num(nodes.length);
+  $('nav-paths-count').textContent=num(topologies.length);
+  $('nav-network-count').textContent=num(state.network_runs.length);
+  const query=$('path-search').value.trim().toLocaleLowerCase('fa');
+  const protocol=$('path-protocol-filter').value;
+  const filtered=topologies.filter(topology=>{
+    const names=[...topology.clients,...topology.servers,topology.load_balancer].filter(Boolean).map(title).join(' ');
+    return (protocol==='all'||topology.protocol===protocol)&&`${topology.name} ${names}`.toLocaleLowerCase('fa').includes(query);
+  });
+  const pathPages=Math.max(1,Math.ceil(filtered.length/8));
+  pathsPage=Math.min(pathsPage,pathPages-1);
+  updatePagination('paths',pathsPage,pathPages,filtered.length);
+
   $('cluster-nodes-empty').hidden=!!nodes.length; $('cluster-nodes-wrap').hidden=!nodes.length;
   $('new-topology').disabled=nodes.length<2;
   const busy=!!state.active_job;
   $('cluster-nodes').innerHTML=nodes.map(node=>`<tr><td><strong class="row-name">${esc(node.name)}</strong><small class="mono">${esc(node.address)}</small></td><td class="mono">${esc(node.ssh_user)} : ${esc(node.ssh_port)}</td><td class="mono small">${esc(node.install_dir)}</td><td><div class="row-actions"><button class="button secondary" data-node="${esc(node.node_id)}" data-action="edit" ${busy?'disabled':''}>تنظیمات</button><button class="button secondary" data-node="${esc(node.node_id)}" data-action="scan" ${busy?'disabled':''}>${node.host_key?'کلید تأییدشده':'بررسی کلید'}</button><button class="button secondary" data-node="${esc(node.node_id)}" data-action="bootstrap" ${busy||!node.host_key?'disabled':''}>نصب تازه</button><button class="button secondary" data-node="${esc(node.node_id)}" data-action="dependencies" ${busy||!node.host_key?'disabled':''}>نصب ابزار QUIC</button><button class="button secondary" data-node="${esc(node.node_id)}" data-action="preflight" ${busy||!node.host_key?'disabled':''}>بررسی اتصال</button></div></td></tr>`).join('');
   $('cluster-topologies-empty').hidden=!!topologies.length;
-  $('cluster-topologies').innerHTML=topologies.map(topology=>{
+  $('cluster-topologies').innerHTML=filtered.slice(pathsPage*8,pathsPage*8+8).map(topology=>{
     const route=`${topology.clients.map(title).join('، ')} → ${topology.load_balancer?title(topology.load_balancer)+' → ':''}${topology.servers.map(title).join('، ')}`;
     return `<div class="topology-row"><div><strong>${esc(topology.name)}</strong><p class="small">${esc(route)}</p><small class="muted">${esc(topology.protocol.toUpperCase())} · پورت ${num(topology.port)} · ${num(topology.repetitions)} تکرار</small></div><div class="row-actions"><button class="button secondary" data-topology="${esc(topology.topology_id)}" ${busy?'disabled':''}>اجرای مسیر</button><button class="button secondary" data-topology="${esc(topology.topology_id)}" data-capture="true" ${busy?'disabled':''}>اجرا + PCAP</button></div></div>`;
   }).join('');
-  const runs=state.network_runs;
-  $('network-runs').innerHTML=runs.length?`<table><thead><tr><th>آزمایش</th><th>نتیجه</th><th>نمونه / بایت</th><th>گزارش</th></tr></thead><tbody>${runs.map(run=>`<tr><td>${esc(run.topology.name)}<span class="row-id">${esc(run.run_id)}</span></td><td><span class="status-label ${esc(run.status)}">${{succeeded:'موفق',failed:'ناموفق',cancelled:'متوقف‌شده'}[run.status]||esc(run.status)}</span>${run.failure_reason?`<p class="small">${esc(errors[run.failure_reason]||run.failure_reason)}</p>`:''}</td><td>${num(run.observations.length)} نمونه / ${num(run.observations.reduce((sum,item)=>sum+item.bytes_echoed,0))} بایت</td><td><div class="row-actions"><button class="button secondary" data-view="${esc(run.run_id)}">جزئیات</button><button class="button secondary" data-report="${esc(run.run_id)}">JSON</button></div></td></tr>`).join('')}</tbody></table>`:'<p class="empty-filter">هنوز آزمایش بین سرورها اجرا نشده است.</p>';
+  if(topologies.length&&!filtered.length)$('cluster-topologies').innerHTML='<p class="empty-filter">مسیری با این جست‌وجو پیدا نشد.</p>';
+  const runQuery=$('network-search').value.trim().toLocaleLowerCase('fa');
+  const runStatus=$('network-status-filter').value;
+  const matched=state.network_runs.filter(run=>(runStatus==='all'||run.status===runStatus)&&`${run.topology.name} ${run.run_id} ${run.topology.protocol}`.toLocaleLowerCase('fa').includes(runQuery));
+  const runPages=Math.max(1,Math.ceil(matched.length/10));
+  networkPage=Math.min(networkPage,runPages-1);
+  updatePagination('network',networkPage,runPages,matched.length);
+  const runs=matched.slice(networkPage*10,networkPage*10+10);
+  $('network-runs').innerHTML=runs.length?`<table><thead><tr><th>آزمایش</th><th>نتیجه</th><th>نمونه / بایت</th><th>گزارش</th></tr></thead><tbody>${runs.map(run=>`<tr><td>${esc(run.topology.name)}<span class="row-id">${esc(run.run_id)}</span></td><td><span class="status-label ${esc(run.status)}">${{succeeded:'موفق',failed:'ناموفق',cancelled:'متوقف‌شده'}[run.status]||esc(run.status)}</span>${run.failure_reason?`<p class="small">${esc(errors[run.failure_reason]||run.failure_reason)}</p>`:''}</td><td>${num(run.observations.length)} نمونه / ${num(run.observations.reduce((sum,item)=>sum+item.bytes_echoed,0))} بایت</td><td><div class="row-actions"><button class="button secondary" data-view="${esc(run.run_id)}">جزئیات</button><button class="button secondary" data-report="${esc(run.run_id)}">JSON</button></div></td></tr>`).join('')}</tbody></table>`:`<p class="empty-filter">${state.network_runs.length?'نتیجه‌ای با این فیلتر پیدا نشد.':'هنوز آزمایش بین سرورها اجرا نشده است.'}</p>`;
   const latest=state.jobs.find(job=>['bootstrap','preflight','dependencies'].includes(job.kind));
   if(latest && !['running','cancelling'].includes(latest.status)) {
     $('cluster-operation-status').textContent=`آخرین آماده‌سازی: ${title(latest.target)} · ${latest.status==='succeeded'?'موفق':errors[latest.error]||'انجام نشد'}`;
@@ -70,7 +91,7 @@ $('topology-form').addEventListener('submit',async event=>{
   const definition={name:$('topology-name').value.trim(),clients:selected('clients'),servers:selected('servers'),load_balancer:$('topology-lb').value||null,protocol:$('topology-protocol').value,port:Number($('topology-port').value),repetitions:Number($('topology-repetitions').value),run_seed:Number($('topology-seed').value),controlled_failure:$('topology-failure').checked};
   try{await call('/topologies',definition);$('topology-dialog').close();refresh();}catch(error){$('topology-error').textContent=error.message;$('topology-error').hidden=false;}finally{$('save-topology').disabled=false;}
 });
-$('cluster-topologies').addEventListener('click',async event=>{const button=event.target.closest('button[data-topology]');if(!button)return;button.disabled=true;try{await call(`/topologies/${button.dataset.topology}/run`,button.dataset.capture?{capture:true}:{});refresh();}catch(error){message(error.message);button.disabled=false;}});
+$('cluster-topologies').addEventListener('click',async event=>{const button=event.target.closest('button[data-topology]');if(!button)return;button.disabled=true;try{await call(`/topologies/${button.dataset.topology}/run`,button.dataset.capture?{capture:true}:{});location.hash='network-results';refresh();}catch(error){message(error.message);button.disabled=false;}});
 function captureMarkup(record) {
   if(!record.captures?.length) return `<p class="detail-notice">${record.topology.capture?'ضبط درخواست شد ولی خروجی ثبت نشد.':'ضبط بسته برای این اجرا فعال نبود.'}</p>`;
   const names=Object.fromEntries(record.plan.nodes.map(node=>[node.node_id,node.name]));
@@ -103,3 +124,20 @@ function syncProtocolControls() {
   if(!secure)$('topology-failure').checked=false;
 }
 $('topology-protocol').addEventListener('change',syncProtocolControls);
+
+function updatePagination(prefix,page,pages,count) {
+  $(prefix+'-pagination').hidden=pages<2;
+  $(prefix+'-page-label').textContent=`صفحهٔ ${num(page+1)} از ${num(pages)} · ${num(count)} مورد`;
+  $(prefix+'-prev').disabled=page===0;
+  $(prefix+'-next').disabled=page>=pages-1;
+}
+for(const [id,event,kind] of [['path-search','input','paths'],['path-protocol-filter','change','paths'],['network-search','input','network'],['network-status-filter','change','network']]) {
+  $(id).addEventListener(event,()=>{if(kind==='paths')pathsPage=0;else networkPage=0;if(current)renderCluster(current);});
+}
+for(const [id,kind,delta] of [['paths-prev','paths',-1],['paths-next','paths',1],['network-prev','network',-1],['network-next','network',1]]) {
+  $(id).addEventListener('click',()=>{
+    if(kind==='paths')pathsPage+=delta;else networkPage+=delta;
+    if(current)renderCluster(current);
+    $('view-'+(kind==='paths'?'paths':'network-results')).scrollIntoView({block:'start'});
+  });
+}

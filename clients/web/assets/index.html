@@ -32,13 +32,19 @@
 
   <div id="app" class="app-shell" hidden>
     <aside class="sidebar">
-      <a href="#cluster" class="brand" aria-label="NetSpectra، سرورها و مسیرها" dir="ltr"><img src="/assets/mark.svg" alt="" width="30" height="30"><span>NetSpectra</span></a>
+      <div class="sidebar-heading"><a href="#servers" class="brand" aria-label="NetSpectra، مدیریت سرورها" dir="ltr"><img src="/assets/mark.svg" alt="" width="30" height="30"><span>NetSpectra</span></a><button id="menu-toggle" class="button secondary menu-toggle" type="button" aria-controls="panel-navigation" aria-expanded="false"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>منو</button></div>
       <div class="workspace"><span class="workspace-icon"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#flask-conical"></use></svg></span><div><strong>آزمایشگاه پروتکل</strong><small>فضای شخصی شما</small></div></div>
-      <nav aria-label="بخش‌های پنل">
-        <a href="#cluster" data-nav="cluster"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#server"></use></svg><span>سرورها و مسیرها</span></a>
-        <a href="#experiments" data-nav="experiments"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#flask-conical"></use></svg><span>تست محلی</span><span class="nav-count" id="nav-count">۰</span></a>
-        <a href="#runs" data-nav="runs"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#activity"></use></svg><span>تاریخچهٔ اجرا</span></a>
-        <a href="#guide" data-nav="guide"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#circle-help"></use></svg><span>روش کار</span></a>
+      <nav id="panel-navigation" aria-label="بخش‌های پنل">
+        <div class="nav-group" role="group" aria-labelledby="nav-network-label"><span class="nav-group-label" id="nav-network-label">آزمایش بین سرورها</span>
+          <a href="#servers" data-nav="servers"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#server"></use></svg><span>سرورها</span><span class="nav-count" id="nav-nodes-count">۰</span></a>
+          <a href="#paths" data-nav="paths"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 6h10v12H7M7 6v12"/><circle cx="7" cy="6" r="3"/><circle cx="7" cy="18" r="3"/></svg><span>مسیرهای آزمایش</span><span class="nav-count" id="nav-paths-count">۰</span></a>
+          <a href="#network-results" data-nav="network-results"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#activity"></use></svg><span>نتایج بین سرورها</span><span class="nav-count" id="nav-network-count">۰</span></a>
+        </div>
+        <div class="nav-group" role="group" aria-labelledby="nav-local-label"><span class="nav-group-label" id="nav-local-label">موتور محلی</span>
+          <a href="#experiments" data-nav="experiments"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#flask-conical"></use></svg><span>تست محلی</span><span class="nav-count" id="nav-count">۰</span></a>
+          <a href="#runs" data-nav="runs"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#activity"></use></svg><span>نتایج محلی</span></a>
+        </div>
+        <a href="#guide" data-nav="guide"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#circle-help"></use></svg><span>راهنمای کار</span></a>
       </nav>
       <div class="sidebar-bottom">
         <div class="scope-note"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#server"></use></svg><div><strong id="host-label">کنترل‌کنندهٔ آزمایش</strong><small>ترافیک مصنوعی، سرورهای منتخب</small></div></div>
@@ -49,22 +55,32 @@
     <div class="main-shell">
       <header class="topbar"><div class="breadcrumb"><span>فضای آزمایش</span><svg class="tiny-icon" aria-hidden="true"><use href="/assets/icons.svg#chevron-left"></use></svg><span id="breadcrumb-current">آزمایش‌ها</span></div><div class="connection"><span class="status-dot"></span><span id="connection-label">متصل به میزبان</span></div></header>
       <main id="main" tabindex="-1">
-        <section id="view-cluster" aria-labelledby="cluster-title" hidden>
-          <div class="page-heading"><div><h1 id="cluster-title">سرورها و مسیرها</h1><p>کلاینت، سرور و لودبالانسر را برای هر آزمایش انتخاب کنید.</p></div><button class="button primary" id="new-node">افزودن سرور</button></div>
+        <div id="connection-error" class="notice error" role="alert" hidden><span>دریافت اطلاعات انجام نشد. اتصال را بررسی کنید.</span><button id="retry-connection" class="text-button">تلاش دوباره</button></div>
+        <div id="active-job" class="active-job" role="status" hidden><div class="active-copy"><span class="spinner"></span><div><strong id="active-title">آزمایش در حال اجراست</strong><small id="active-description">نتیجه بعد از پایان اینجا ثبت می‌شود.</small></div></div><button id="cancel-job" class="button danger-quiet"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#square"></use></svg><span>توقف اجرا</span></button></div>
+        <section id="view-servers" aria-labelledby="servers-title" hidden>
+          <div class="page-heading"><div><h1 id="servers-title">سرورها</h1><p>اتصال SSH، کلید میزبان و ابزارهای هر سرور را مدیریت کنید.</p></div><button class="button primary" id="new-node">افزودن سرور</button></div>
           <details class="advanced cluster-key"><summary><span>کلید SSH کنترل‌کننده</span><span>راه‌اندازی اتصال</span></summary><p class="field-help">کلید عمومی را در دسترسی SSH سرورهای خودتان ثبت کنید. کلید خصوصی از کنترل‌کننده خارج نمی‌شود.</p><button id="create-cluster-key" class="button secondary" type="button">ساخت / نمایش کلید عمومی</button><textarea id="cluster-public-key" aria-label="کلید عمومی کنترل‌کننده" readonly dir="ltr" rows="3" hidden></textarea></details>
           <div class="section-heading"><h2>سرورهای ثبت‌شده</h2><span class="muted small">نصب فقط در پوشهٔ اختصاصی تازه</span></div>
           <div id="cluster-nodes-empty" class="empty-state"><h3>سرورهایتان را اضافه کنید</h3><p>آدرس SSH و پوشهٔ تازه را تعیین کنید؛ هیچ پورت یا سرویس موجودی جابه‌جا نمی‌شود.</p></div>
           <div class="table-wrap" id="cluster-nodes-wrap" hidden><table><thead><tr><th>سرور</th><th>SSH</th><th>نصب اختصاصی</th><th>عملیات</th></tr></thead><tbody id="cluster-nodes"></tbody></table></div>
           <p id="cluster-operation-status" class="field-help" role="status"></p>
-          <div class="section-heading cluster-section"><h2>مسیرهای آزمایش</h2><button id="new-topology" class="button secondary">مسیر جدید</button></div>
+          <p class="bottom-note">سرورها آماده‌اند؟ <a class="text-button" href="#paths">رفتن به مسیرهای آزمایش</a></p>
+        </section>
+        <section id="view-paths" aria-labelledby="paths-title" hidden>
+          <div class="page-heading"><div><h1 id="paths-title">مسیرهای آزمایش</h1><p>کلاینت، مقصد و پروتکل را انتخاب کنید؛ هر مسیر یک کانفیگ مستقل است.</p></div><button id="new-topology" class="button primary">مسیر جدید</button></div>
+          <div class="section-heading"><h2>مسیرهای ذخیره‌شده</h2><div class="list-tools"><label class="search"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#search"></use></svg><input id="path-search" aria-label="جست‌وجوی مسیر" placeholder="نام مسیر یا سرور"></label><select id="path-protocol-filter" aria-label="فیلتر پروتکل مسیر"><option value="all">همهٔ پروتکل‌ها</option><option value="tcp">TCP</option><option value="udp">UDP</option><option value="tls">TCP / TLS</option><option value="h3">QUIC / HTTP3</option></select></div></div>
           <div id="cluster-topologies-empty" class="detail-notice">حداقل دو سرور لازم است. کلاینت و backend می‌توانند روی یک سرور و لودبالانسر روی سرور دیگر باشند.</div>
           <div id="cluster-topologies"></div>
-          <div class="section-heading cluster-section"><h2>نتیجهٔ ارتباط بین سرورها</h2></div><div id="network-runs" class="table-wrap"></div>
-          <p class="bottom-note">SSH برای کنترل است؛ ترافیک اندازه‌گیری‌شده مستقیماً بین سرورهای انتخاب‌شده جریان دارد. تست محلی جداست.</p>
+          <div id="paths-pagination" class="pagination" hidden><p id="paths-page-label" role="status"></p><div><button class="button secondary" id="paths-prev">صفحهٔ قبل</button><button class="button secondary" id="paths-next">صفحهٔ بعد</button></div></div>
+          <p class="bottom-note">گزارش اجراها در <a class="text-button" href="#network-results">نتایج بین سرورها</a> ثبت می‌شود.</p>
         </section>
-        <div id="connection-error" class="notice error" role="alert" hidden><span>دریافت اطلاعات انجام نشد. اتصال را بررسی کنید.</span><button id="retry-connection" class="text-button">تلاش دوباره</button></div>
-        <div id="active-job" class="active-job" role="status" hidden><div class="active-copy"><span class="spinner"></span><div><strong id="active-title">آزمایش در حال اجراست</strong><small id="active-description">نتیجه بعد از پایان اینجا ثبت می‌شود.</small></div></div><button id="cancel-job" class="button danger-quiet"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#square"></use></svg><span>توقف اجرا</span></button></div>
-
+        <section id="view-network-results" aria-labelledby="network-results-title" hidden>
+          <div class="page-heading"><div><h1 id="network-results-title">نتایج بین سرورها</h1><p>نتیجهٔ هر اجرا، زمان اتصال و فایل‌های PCAP و qlog را اینجا بررسی کنید.</p></div><a class="button secondary" href="#paths">اجرای آزمایش</a></div>
+          <div class="section-heading"><h2>اجراهای اخیر</h2><div class="list-tools"><label class="search"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#search"></use></svg><input id="network-search" aria-label="جست‌وجوی نتیجهٔ شبکه" placeholder="نام آزمایش یا شناسهٔ اجرا"></label><select id="network-status-filter" aria-label="فیلتر وضعیت شبکه"><option value="all">همهٔ وضعیت‌ها</option><option value="succeeded">موفق</option><option value="failed">ناموفق</option><option value="cancelled">متوقف‌شده</option></select></div></div>
+          <div id="network-runs" class="table-wrap"></div>
+          <div id="network-pagination" class="pagination" hidden><p id="network-page-label" role="status"></p><div><button class="button secondary" id="network-prev">صفحهٔ قبل</button><button class="button secondary" id="network-next">صفحهٔ بعد</button></div></div>
+          <p class="bottom-note">ترافیک اندازه‌گیری‌شده مستقیماً بین سرورهای انتخاب‌شده جریان دارد.</p>
+        </section>
         <section id="view-experiments" aria-labelledby="experiments-title">
           <div class="page-heading"><div><h1 id="experiments-title">تست موتور محلی</h1><p>یک کانفیگ بسازید. اجرا کنید. نتیجه را ببینید.</p></div><button class="button primary" id="new-experiment"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#plus"></use></svg>آزمایش جدید</button></div>
           <div class="overview-strip"><div class="hero-stat"><span class="stat-label">اجراهای موفق</span><div><strong id="success-count">۰</strong><span id="total-count">از ۰ اجرا</span></div></div><div class="overview-divider"></div><div class="overview-context"><span class="stat-label">آخرین فعالیت</span><strong id="latest-activity">هنوز اجرایی ثبت نشده</strong><div id="history-strip" class="history-strip" aria-label="نتیجهٔ اجراهای اخیر"></div></div><div class="overview-scope"><span class="soft-tag">محیط کنترل‌شده</span><p>TCP و UDP روی همین میزبان</p></div></div>
@@ -77,14 +93,14 @@
         </section>
 
         <section id="view-runs" aria-labelledby="runs-title" hidden>
-          <div class="page-heading"><div><h1 id="runs-title">تاریخچهٔ اجرا</h1><p>هر اجرا، یک نتیجهٔ مستقل و قابل بررسی.</p></div><button id="refresh-runs" class="button secondary"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#refresh-cw"></use></svg>به‌روزرسانی</button></div>
+          <div class="page-heading"><div><h1 id="runs-title">نتایج محلی</h1><p>هر اجرا، یک نتیجهٔ مستقل و قابل بررسی.</p></div><button id="refresh-runs" class="button secondary"><svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#refresh-cw"></use></svg>به‌روزرسانی</button></div>
           <div class="section-heading"><h2>اجراهای اخیر</h2><select id="status-filter" aria-label="فیلتر وضعیت اجرا"><option value="all">همهٔ وضعیت‌ها</option><option value="succeeded">موفق</option><option value="failed">ناموفق</option><option value="cancelled">متوقف‌شده</option></select></div>
           <div id="runs-empty" class="empty-state" hidden><div class="empty-symbol"><svg aria-hidden="true"><use href="/assets/icons.svg#activity"></use></svg></div><h3>هنوز نتیجه‌ای ندارید</h3><p>یک آزمایش اجرا کنید تا نتیجه، تکرارها و تنظیماتش اینجا بماند.</p><a href="#experiments" class="button secondary">رفتن به آزمایش‌ها</a></div>
           <div id="runs-table-wrap" class="table-wrap" hidden><table><thead><tr><th>آزمایش / شناسهٔ اجرا</th><th>وضعیت</th><th>نمونه‌ها</th><th>دادهٔ بازگشته</th><th>زمان</th><th><span class="sr-only">جزئیات</span></th></tr></thead><tbody id="runs-table"></tbody></table></div>
           <p id="no-run-results" class="empty-filter" hidden>اجرایی با این وضعیت پیدا نشد.</p>
         </section>
 
-        <section id="view-guide" aria-labelledby="guide-title" hidden><div class="page-heading"><div><h1 id="guide-title">کمتر تنظیم کنید، دقیق‌تر ببینید</h1><p>سه قدم برای کار با آزمایشگاه.</p></div></div><ol class="guide-steps"><li><span>۱</span><div><h2>کانفیگ را بسازید</h2><p>TCP یا UDP، تعداد تکرار و seed را انتخاب کنید. تنظیمات retry و زمان مجاز در بخش پیشرفته‌اند.</p></div></li><li><span>۲</span><div><h2>آزمایش را اجرا کنید</h2><p>یک اجرا در هر لحظه انجام می‌شود. می‌توانید آن را متوقف کنید؛ نتیجه و تلاش‌های انجام‌شده ثبت می‌شوند.</p></div></li><li><span>۳</span><div><h2>نتیجه را بررسی یا بازاجرا کنید</h2><p>از جزئیات، نمونه‌ها و تلاش‌ها را ببینید یا با replay همان ورودی را دوباره اجرا کنید. نتیجه و زمان می‌توانند متفاوت باشند.</p></div></li></ol><div class="guide-note"><h2>محدودهٔ فعلی</h2><p>برای آزمایش بین سرورها، از بخش سرورها و مسیرها نقش‌ها را انتخاب کنید. تست محلی فقط سلامت موتور را بررسی می‌کند. ضبط PCAP و تست بار گسترده هنوز فعال نیستند.</p><a href="https://github.com/AlamorNetwork/NetSpectra" target="_blank" rel="noopener noreferrer" class="text-button">مستندات و کد پروژه<svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#arrow-up-right"></use></svg></a></div></section>
+        <section id="view-guide" aria-labelledby="guide-title" hidden><div class="page-heading"><div><h1 id="guide-title">کمتر تنظیم کنید، دقیق‌تر ببینید</h1><p>سه قدم برای کار با آزمایشگاه.</p></div></div><ol class="guide-steps"><li><span>۱</span><div><h2>کانفیگ را بسازید</h2><p>TCP یا UDP، تعداد تکرار و seed را انتخاب کنید. تنظیمات retry و زمان مجاز در بخش پیشرفته‌اند.</p></div></li><li><span>۲</span><div><h2>آزمایش را اجرا کنید</h2><p>یک اجرا در هر لحظه انجام می‌شود. می‌توانید آن را متوقف کنید؛ نتیجه و تلاش‌های انجام‌شده ثبت می‌شوند.</p></div></li><li><span>۳</span><div><h2>نتیجه را بررسی یا بازاجرا کنید</h2><p>از جزئیات، نمونه‌ها و تلاش‌ها را ببینید یا با replay همان ورودی را دوباره اجرا کنید. نتیجه و زمان می‌توانند متفاوت باشند.</p></div></li></ol><div class="guide-note"><h2>محدودهٔ فعلی</h2><p>ابتدا در «سرورها» اتصال‌ها را آماده کنید، سپس در «مسیرهای آزمایش» نقش‌ها و پروتکل را تعیین کنید. گزارش، PCAP و qlog در «نتایج بین سرورها» هستند. تست محلی فقط سلامت موتور را بررسی می‌کند؛ تست بار گسترده هنوز فعال نیست.</p><a href="https://github.com/AlamorNetwork/NetSpectra" target="_blank" rel="noopener noreferrer" class="text-button">مستندات و کد پروژه<svg class="icon" aria-hidden="true"><use href="/assets/icons.svg#arrow-up-right"></use></svg></a></div></section>
       </main>
     </div>
   </div>
