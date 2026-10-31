@@ -137,3 +137,12 @@ final package build evidence is recorded after rebuilding.
 Server credentials, addresses and private keys are deliberately absent. T05 is
 ready for review using native Ubuntu evidence; local WSL is no longer required
 for this iteration. Human review and proposed ADR approval remain pending.
+
+Final Ubuntu build at commit 060b1a9 succeeded after excluding .tools/. Source
+archive inspection found 56 entries (45,244 bytes), with no .tools/ or .venv/
+contents. Server git working tree is clean.
+
+Artifact SHA256 for that build:
+
+- source: e3c111533c286cbe8c11ebfafc668b34edb684d3ada3894babab38da635caf0f
+- wheel: c7327d146d5d5fcec27a80e9cc83b7aa5f0b10b244561f2be8e3441daed56856
