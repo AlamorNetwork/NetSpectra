@@ -50,12 +50,12 @@ systemctl status netspectra-panel --no-pager
 
 The deployment script requires root and a clean checkout. It initializes only
 missing credentials, generates a 90-day self-signed IP certificate, and installs
-`netspectra-panel.service` on HTTPS port 8765. It refuses to replace an unrelated
+`netspectra-panel.service` on HTTPS port 443 (override with `--port`). It refuses to replace an unrelated
 listener during first installation. It preserves existing configurations/results
 on subsequent deployment. Runtime state, TLS key and initial access file are in
 ignored `artifacts/panel/` (directory mode 0700). Source stays in Git.
 
-Open **https://54.36.113.36:8765**. A self-signed certificate causes a browser trust
+Open **https://54.36.113.36**. A self-signed certificate causes a browser trust
 warning until the certificate is explicitly trusted by the operator. Retrieve the
 public `artifacts/panel/tls.crt` over the established SSH connection to verify it.
 Use a trusted certificate before wider distribution. Existing certificates are
