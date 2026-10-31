@@ -28,5 +28,7 @@ reports/w*/
 !reports/w02/README.md
 !reports/w03/
 !reports/w03/README.md
+!reports/w04/
+!reports/w04/README.md
 .DS_Store
 Thumbs.db
