@@ -265,7 +265,7 @@ def flows_csv(report: dict) -> bytes:
         "ip_bytes",
         "header_bytes",
     ]
-    writer = csv.DictWriter(buffer, fieldnames=fields)
+    writer = csv.DictWriter(buffer, fieldnames=fields, lineterminator="\n")
     writer.writeheader()
     writer.writerows(report["flows"])
     return buffer.getvalue().encode("utf-8")

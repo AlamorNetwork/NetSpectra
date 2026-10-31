@@ -3,4 +3,5 @@
 *.yml text eol=lf
 *.toml text eol=lf
 *.md text eol=lf whitespace=-blank-at-eol
+*.csv text eol=lf
 uv.lock text eol=lf
