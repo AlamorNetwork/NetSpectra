@@ -4,7 +4,8 @@
 
 Initial T01–T03 local CLI with fixed loopback execution and per-run provenance.
 See clients/cli/README.md for unsupported configurations and storage limits.
-No remote measurement endpoints are used. W02 T04–T06 are not complete.
+No remote measurement endpoints are used. T04–T06 now have same-host process
+endpoints, bounded retry and versioned seeded replay; independent review remains.
 
 ## Reproduction
 
@@ -43,3 +44,35 @@ local and ignored. Credentials and server addresses are not published.
 
 The final evidence-only commit is pulled afterward and HEAD equality rechecked.
 Hosted CI is checked separately; server success alone is not a CI assertion.
+
+## W02 T04–T06: seeded process endpoints, retry and replay
+
+Reproduction:
+
+```sh
+uv run --locked pytest
+uv run --locked python scripts/seeded_replay_smoke.py
+```
+
+Windows precommit validation: 121 tests passed in 12.45s; Ruff and formatting
+pass; source/wheel build succeeds. Native process endpoints validate both peer
+roles/PIDs, exact payload lengths and SHA256. Cancellation and startup-timeout
+tests verify children exit; malformed readiness is rejected and reaped.
+
+A Windows-specific failure initially revealed venv launcher PIDs differed from
+actual child PIDs. Base-interpreter invocation plus an explicit trusted package
+path fixes process ownership and cleanup; all tests subsequently passed.
+
+Transient-only retry, retry exhaustion, per-attempt deadline and total-budget
+backoff are tested. Replay retains the original seed despite registry changes,
+rejects changed workload definitions, and creates a distinct Run.
+
+Native Windows seeded smoke: 3 samples and 734 bytes per TCP/UDP run and replay.
+Input hashes match per protocol:
+
+- TCP: 7be443ff67bec2b09801b985da07adc4a47ad0edde11a9b22a6f3e8e52d91b85
+- UDP: 3583ed681b153a60a8d6295c4f6b40dd80aa740190eeb6813443dff7c7aeba60
+
+These are input-plan fingerprints, not timing or outcome guarantees. No public
+ports, namespace topology or remote-target traffic are introduced. Server and
+CI evidence for the committed revision follows after synchronization.

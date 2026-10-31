@@ -2,6 +2,10 @@
 
 ## 0.1.0 — Unreleased
 
+- Add independent local client/server endpoints for seeded TCP/UDP, versioned
+  SHA256 workloads, transient-only retries and immutable snapshot replay.
+- Reap endpoint processes on timeout/cancellation; add cross-platform golden
+  vector and seeded replay smoke to Ubuntu/Windows CI.
 - Add local create/list/run/inspect CLI, configuration snapshots, UUID/UTC/source
   metadata and checksummed artifact manifests for bounded loopback runs.
 - Persist timeout/failure/cancellation categories; reject unsupported scenarios

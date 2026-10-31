@@ -435,8 +435,8 @@ Do not implement later sprints, collect external user traffic, or access endpoin
 | PPRL-M01-W02-T01 | REVIEW | create/list/run/inspect و تست مسیر کامل؛ اجرای فعلی فقط loopback |
 | PPRL-M01-W02-T02 | REVIEW | UUID و UTC و Git SHA و نسخه محیط؛ dirty بودن در summary ثبت می‌شود |
 | PPRL-M01-W02-T03 | REVIEW | snapshot و پوشه Run و manifest هش/اندازه؛ بررسی یکپارچگی خروجی |
-| PPRL-M01-W02-T04 | TODO | دو endpoint جدا هنوز پیاده‌سازی نشده |
-| PPRL-M01-W02-T05 | IN_PROGRESS | timeout و cancellation و دسته خطا موجود؛ retry/resume مانده |
-| PPRL-M01-W02-T06 | IN_PROGRESS | مقایسه تکرار workload ثابت تست شده؛ replay عمومی مبتنی بر seed مانده |
+| PPRL-M01-W02-T04 | REVIEW | دو پردازش مستقل client/server برای TCP/UDP روی loopback؛ نه دو ماشین جدا |
+| PPRL-M01-W02-T05 | REVIEW | retry محدود فقط برای خطای موقت؛ deadline کلی و هر تلاش؛ پاک‌سازی پردازش و ثبت تاریخچه |
+| PPRL-M01-W02-T06 | REVIEW | workload مبتنی بر seed و golden vector و replay از snapshot؛ نتیجه و زمان اجرا تضمین یکسان ندارند |
 
 جزئیات: `weekly/W02.md` و `../reports/w02/README.md`. گیت بازبینی مستقل هنوز تأیید نشده است.

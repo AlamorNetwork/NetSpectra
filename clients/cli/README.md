@@ -26,25 +26,70 @@ filesystem replacement, power loss, or administrators modifying its files.
 
 ## Supported execution
 
-Only loopback_echo version 1 can run, with protocol tcp or udp and 1–10
-repetitions. Scope must be isolated / synthetic_only, delay/loss/jitter zero,
-bandwidth_mbps exactly 100 as the nominal baseline label, and both raw PCAP/qlog
-retention flags false. The runner does not configure or measure bandwidth;
-the summary explicitly records network_profile_applied=false. It does not
-create namespace isolation. Other valid manifests can be imported and inspected
-but execution is rejected before any probe starts.
+Two version-1 scenarios can run: loopback_echo retains its fixed in-process
+payload for compatibility; seeded_echo uses independent client/server processes
+on the same host. Both protocols (TCP/UDP) use IPv4 loopback only. This is not
+a two-machine or namespace topology and exposes no public measurement listener.
 
-The fixed payload does not use randomness. The seed is preserved for lineage;
-equal seeds do not yet select a randomized workload. No general replay guarantee
-or separate client/server endpoints are implemented in this step.
+Both scenarios allow 1–10 repetitions, isolated / synthetic_only scope, zero
+delay/loss/jitter, bandwidth_mbps=100 as a nominal label (not shaped or measured),
+and false PCAP/qlog retention flags. Unsupported configurations are rejected
+before any endpoint starts. See the seeded TCP and UDP templates.
 
-`run --timeout <seconds>` applies one deadline to the entire batch (0 < timeout
-<= 30; default 5). Known failures are categorized as timeout, loopback_error,
-internal_error or cancelled. Completed repetitions survive a later failure in
-the terminal record. Ctrl+C creates a cancelled record when normal Python signal
-handling can finish. SIGKILL, power loss and storage failures can leave an
-incomplete run directory without run.json; those are not successful runs.
-Automatic retry/resume is not implemented.
+```sh
+uv run --locked pprl create experiments/templates/seeded-tcp.json
+uv run --locked pprl run exp-seeded-tcp --timeout 20 --attempt-timeout 5 --retries 1
+# Substitute the run_id printed above:
+uv run --locked pprl replay run-REPLACE_WITH_RUN_ID
+uv run --locked python scripts/seeded_replay_smoke.py
+```
+
+## Retry and cancellation
+
+The entire batch, including retry delays, has one --timeout budget (0 < seconds
+<= 30; default 5). Each attempt has --attempt-timeout (0 < seconds <= 30; default
+2). --retries is 0–2 additional attempts per sample (default 0); --retry-delay
+is 0–1 seconds (default 0.05). A timeout or known transient connection error may
+retry. Payload/protocol mismatch, configuration, permission and internal errors
+do not retry. Every attempt is recorded, so failures are not hidden by success.
+
+An attempt creates new endpoints and reuses that sample's exact planned bytes.
+Subprocesses are terminated/reaped after errors, deadlines and cancellation;
+cleanup can take additional time after a deadline. Windows uses the base Python
+interpreter directly to avoid a venv launcher's extra process. No system Python
+packages or shell commands are injected into child endpoints.
+
+Completed samples survive a later batch failure. bytes_echoed counts successful
+samples, not failed-attempt wire traffic; attempts.bytes_planned is declared input,
+not measured traffic volume. Failure categories include timeout, loopback_error,
+endpoint_io_error, endpoint_transient_error, endpoint_protocol_error,
+payload_mismatch, internal_error and cancelled. Error messages expose no payload
+or private exception details.
+
+Ctrl+C finalizes a cancelled run when Python signal handling can finish. SIGKILL,
+power loss, repeated interruption or storage failure can leave incomplete run
+directories. No in-place crash resume is implemented.
+
+## Seed and replay
+
+seeded_echo uses generator pprl-sha256-v1: ASCII prefix
+`pprl-sha256-v1:{seed}:{sample_index}:`; size is 32 plus the first two bytes of
+SHA256(prefix), interpreted big-endian, modulo 481. Payload blocks are
+SHA256(prefix + ASCII decimal block counter starting at 0), truncated to that
+size. Inputs contain no private data. A golden-vector test fixes this behavior
+across Python platforms. The older fixed scenario records seed_used=false.
+
+summary.json records the canonical workload plan/hash, generator, per-sample
+length/hash, attempt history and execution policy. replay first verifies original
+artifacts, compares the saved scenario/workload definition with the current
+version, then uses the immutable experiment snapshot and saved policy. Editing
+the experiment registry does not change a replay. A replay always creates a new
+run_id and references the old one; it never overwrites the original. Older runs
+without replay metadata or changed definitions are rejected.
+
+Equal plan hashes establish equal synthetic inputs, not identical timing, PIDs,
+ports, network conditions or outcomes. Each replay records its current source
+SHA. Cross-machine comparability still requires compatible versions and controls.
 
 Exit codes: 0 successful command; 1 failed execution or I/O; 2 invalid input or
 unsupported configuration; 130 cancelled execution. Errors expose categories,
@@ -57,7 +102,7 @@ artifacts/cli/
   experiments/exp-.../experiment.json
   runs/run-.../
     experiment.json   # immutable configuration snapshot for this run
-    summary.json      # source dirty flag, scenario descriptor, observations
+    summary.json      # source, workload, policy, attempts, replay link, observations
     run.json          # terminal record and artifact manifest
 ```
 

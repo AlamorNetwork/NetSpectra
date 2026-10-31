@@ -4,6 +4,8 @@
 
 The [W02 CLI](clients/cli/README.md) supports create/list/run/inspect with
 versioned manifests, provenance, checksums and bounded loopback execution.
+Seeded TCP/UDP scenarios use separate local client/server processes, bounded
+retry and immutable Run replay. See `scripts/seeded_replay_smoke.py`.
 
 A research lab for reproducible measurements of TCP, TLS, QUIC and HTTP/3 under
 controlled impairment and simulated DPI. Measurements use lab-owned endpoints

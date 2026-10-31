@@ -2,6 +2,7 @@
 
 import argparse
 import asyncio
+import errno
 import hashlib
 import json
 import math
@@ -20,7 +21,9 @@ from jsonschema import Draft202012Validator, FormatChecker
 from jsonschema.exceptions import ValidationError
 from referencing import Registry
 
+from pprl_core.endpoints import EndpointError, probe_process_pair
 from pprl_core.loopback import PAYLOAD, probe_loopback
+from pprl_core.workload import seeded_payload, workload_plan
 
 MAX_JSON_BYTES = 1024 * 1024
 SCENARIO = {
@@ -29,6 +32,21 @@ SCENARIO = {
     "address": "127.0.0.1",
     "payload_hex": PAYLOAD.hex(),
     "network_profile_applied": False,
+}
+SEEDED_SCENARIO = {
+    "name": "seeded_echo",
+    "version": 1,
+    "address": "127.0.0.1",
+    "topology": "two_processes",
+    "generator": "pprl-sha256-v1",
+    "network_profile_applied": False,
+}
+TRANSIENT_ERRNOS = {
+    errno.ECONNRESET,
+    errno.ECONNREFUSED,
+    errno.ECONNABORTED,
+    errno.EPIPE,
+    errno.ETIMEDOUT,
 }
 
 
@@ -231,7 +249,7 @@ def _source_metadata() -> dict:
 def _check_executable(experiment: dict) -> None:
     profile = experiment["network_profile"]
     if (
-        experiment["scenario"] != "loopback_echo"
+        experiment["scenario"] not in {"loopback_echo", "seeded_echo"}
         or experiment["scenario_version"] != 1
         or experiment["protocol"] not in {"tcp", "udp"}
         or experiment["repetitions"] > 10
@@ -248,12 +266,71 @@ def _now() -> str:
     return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
-def run(root: Path, identifier: str, timeout: float) -> tuple[dict, int]:
-    if not math.isfinite(timeout) or not 0 < timeout <= 30:
+def _workload(experiment: dict) -> tuple[list[bytes], dict]:
+    seeded = experiment["scenario"] == "seeded_echo"
+    payloads = [
+        seeded_payload(experiment["run_seed"], i) if seeded else PAYLOAD
+        for i in range(experiment["repetitions"])
+    ]
+    plan = workload_plan(
+        payloads, experiment["protocol"], "pprl-sha256-v1" if seeded else "fixed-v1"
+    )
+    plan.update(seed=experiment["run_seed"], seed_used=seeded)
+    return payloads, plan
+
+
+def _error_category(error: Exception) -> tuple[str, bool]:
+    if isinstance(error, TimeoutError):
+        return "timeout", True
+    if isinstance(error, EndpointError):
+        category = str(error)
+        if category not in {
+            "timeout",
+            "endpoint_transient_error",
+            "endpoint_io_error",
+            "payload_mismatch",
+            "endpoint_protocol_error",
+        }:
+            category = "endpoint_protocol_error"
+        return category, category in {"timeout", "endpoint_transient_error"}
+    if isinstance(error, OSError):
+        return "loopback_error", error.errno in TRANSIENT_ERRNOS
+    if isinstance(error, ValueError):
+        return "loopback_error", False
+    return "internal_error", False
+
+
+def run(
+    root: Path,
+    identifier: str,
+    timeout: float,
+    retries: int = 0,
+    attempt_timeout: float = 2.0,
+    retry_delay: float = 0.05,
+    *,
+    _snapshot: dict | None = None,
+    _replay_of: str | None = None,
+) -> tuple[dict, int]:
+    if isinstance(timeout, bool) or not math.isfinite(timeout) or not 0 < timeout <= 30:
         raise CLIError("invalid_timeout")
-    experiment = inspect(root, identifier)
+    if (
+        type(retries) is not int
+        or not 0 <= retries <= 2
+        or isinstance(attempt_timeout, bool)
+        or isinstance(retry_delay, bool)
+        or not math.isfinite(attempt_timeout)
+        or not 0 < attempt_timeout <= 30
+        or not math.isfinite(retry_delay)
+        or not 0 <= retry_delay <= 1
+    ):
+        raise CLIError("invalid_retry_policy")
+    experiment = inspect(root, identifier) if _snapshot is None else _snapshot
     _validate(experiment, "experiment")
+    if experiment["experiment_id"] != identifier:
+        raise CLIError("record_identity_mismatch")
     _check_executable(experiment)
+    payloads, plan = _workload(experiment)
+    scenario = SEEDED_SCENARIO if experiment["scenario"] == "seeded_echo" else SCENARIO
     source = _source_metadata()
     run_id = f"run-{uuid.uuid4().hex}"
     directory = _path(root, "runs", run_id)
@@ -263,8 +340,8 @@ def run(root: Path, identifier: str, timeout: float) -> tuple[dict, int]:
         "schema_version": "0.1.0",
         "run_id": run_id,
         "experiment_id": identifier,
-        "scenario_version": 1,
-        "scenario_sha256": hashlib.sha256(_json_bytes(SCENARIO)).hexdigest(),
+        "scenario_version": experiment["scenario_version"],
+        "scenario_sha256": hashlib.sha256(_json_bytes(scenario)).hexdigest(),
         "run_seed": experiment["run_seed"],
         "started_at": _now(),
         "platform": {
@@ -281,15 +358,43 @@ def run(root: Path, identifier: str, timeout: float) -> tuple[dict, int]:
         "artifacts": [],
     }
     observations = []
+    attempts = []
 
     async def execute() -> None:
         async with asyncio.timeout(timeout):
-            for _ in range(experiment["repetitions"]):
-                observations.append(
-                    await probe_loopback(
-                        timeout=timeout, protocols=(experiment["protocol"],)
-                    )
-                )
+            for index, payload in enumerate(payloads):
+                for attempt in range(retries + 1):
+                    event = {
+                        "sample_index": index,
+                        "attempt": attempt + 1,
+                        "bytes_planned": len(payload),
+                    }
+                    try:
+                        async with asyncio.timeout(attempt_timeout):
+                            if experiment["scenario"] == "seeded_echo":
+                                observation = await probe_process_pair(
+                                    experiment["protocol"], payload, attempt_timeout
+                                )
+                            else:
+                                observation = await probe_loopback(
+                                    timeout=attempt_timeout,
+                                    protocols=(experiment["protocol"],),
+                                )
+                    except asyncio.CancelledError:
+                        attempts.append(event | {"status": "interrupted"})
+                        raise
+                    except Exception as error:
+                        category, retryable = _error_category(error)
+                        attempts.append(
+                            event | {"status": "failed", "reason": category}
+                        )
+                        if not retryable or attempt == retries:
+                            raise
+                        await asyncio.sleep(retry_delay)
+                    else:
+                        attempts.append(event | {"status": "succeeded"})
+                        observations.append(observation)
+                        break
 
     exit_code = 0
     try:
@@ -297,14 +402,8 @@ def run(root: Path, identifier: str, timeout: float) -> tuple[dict, int]:
     except KeyboardInterrupt:
         record.update(status="cancelled", failure_reason="cancelled")
         exit_code = 130
-    except TimeoutError:
-        record.update(status="failed", failure_reason="timeout")
-        exit_code = 1
-    except (OSError, ValueError):
-        record.update(status="failed", failure_reason="loopback_error")
-        exit_code = 1
-    except Exception:
-        record.update(status="failed", failure_reason="internal_error")
+    except Exception as error:
+        record.update(status="failed", failure_reason=_error_category(error)[0])
         exit_code = 1
     record["finished_at"] = _now()
     record["sample_size"] = len(observations)
@@ -329,9 +428,19 @@ def run(root: Path, identifier: str, timeout: float) -> tuple[dict, int]:
         _atomic_write(
             directory / "summary.json",
             {
-                "scenario": SCENARIO,
+                "scenario": scenario,
                 "source": source,
                 "observations": observations,
+                "workload": plan,
+                "workload_sha256": hashlib.sha256(_json_bytes(plan)).hexdigest(),
+                "execution": {
+                    "timeout": timeout,
+                    "retries": retries,
+                    "attempt_timeout": attempt_timeout,
+                    "retry_delay": retry_delay,
+                },
+                "attempts": attempts,
+                "replay_of": _replay_of,
                 "note": "bandwidth_mbps is a nominal label, not applied or measured",
             },
         ),
@@ -339,6 +448,38 @@ def run(root: Path, identifier: str, timeout: float) -> tuple[dict, int]:
     _validate(record, "run")
     _atomic_write(directory / "run.json", record)
     return record, exit_code
+
+
+def replay(root: Path, identifier: str) -> tuple[dict, int]:
+    previous = inspect(root, identifier)
+    if "run_id" not in previous:
+        raise CLIError("replay_requires_run")
+    directory = _path(root, "runs", identifier)
+    snapshot = _read(_path(directory, "experiment.json"))
+    summary = _read(_path(directory, "summary.json"))
+    _check_executable(snapshot)
+    _, plan = _workload(snapshot)
+    scenario = SEEDED_SCENARIO if snapshot["scenario"] == "seeded_echo" else SCENARIO
+    policy = summary.get("execution")
+    if (
+        not isinstance(policy, dict)
+        or set(policy) != {"timeout", "retries", "attempt_timeout", "retry_delay"}
+        or summary.get("workload") != plan
+        or summary.get("workload_sha256")
+        != hashlib.sha256(_json_bytes(plan)).hexdigest()
+        or previous["scenario_sha256"]
+        != hashlib.sha256(_json_bytes(scenario)).hexdigest()
+    ):
+        raise CLIError("replay_definition_mismatch")
+    if any(type(value) not in {int, float} for value in policy.values()):
+        raise CLIError("invalid_retry_policy")
+    return run(
+        root,
+        snapshot["experiment_id"],
+        **policy,
+        _snapshot=snapshot,
+        _replay_of=identifier,
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -353,6 +494,11 @@ def main(argv: list[str] | None = None) -> int:
     run_parser = commands.add_parser("run", help="Run the fixed loopback scenario")
     run_parser.add_argument("identifier")
     run_parser.add_argument("--timeout", type=float, default=5.0)
+    run_parser.add_argument("--retries", type=int, default=0)
+    run_parser.add_argument("--attempt-timeout", type=float, default=2.0)
+    run_parser.add_argument("--retry-delay", type=float, default=0.05)
+    replay_parser = commands.add_parser("replay", help="Replay a verified Run snapshot")
+    replay_parser.add_argument("identifier")
     args = parser.parse_args(argv)
     try:
         root = args.data_dir.resolve()
@@ -365,12 +511,24 @@ def main(argv: list[str] | None = None) -> int:
             case "inspect":
                 result = inspect(root, args.identifier)
             case "run":
-                result, exit_code = run(root, args.identifier, args.timeout)
+                result, exit_code = run(
+                    root,
+                    args.identifier,
+                    args.timeout,
+                    args.retries,
+                    args.attempt_timeout,
+                    args.retry_delay,
+                )
+            case "replay":
+                result, exit_code = replay(root, args.identifier)
         print(json.dumps(result, sort_keys=True, allow_nan=False))
         return exit_code
     except CLIError as error:
         print(json.dumps({"error": str(error)}), file=sys.stderr)
         return 2
+    except KeyboardInterrupt:
+        print(json.dumps({"status": "cancelled"}), file=sys.stderr)
+        return 130
     except OSError:
         print(json.dumps({"error": "storage_or_io_error"}), file=sys.stderr)
         return 1
