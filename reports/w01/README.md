@@ -93,3 +93,26 @@ uv build --offline
 
 T04 is implemented for local review; independent review and hosted CI remain
 pending. T05 (WSL/Linux loopback) and T06 (ADR-001) are not implemented.
+
+## T05/T06 — loopback and scope policy
+
+Windows loopback command returned scope ipv4_loopback_only, Python 3.12.12,
+TCP and UDP succeeded with 26 bytes each. All 76 tests pass locally.
+
+Reproduce:
+
+```sh
+uv run --locked python -m pprl_core.loopback
+uv run --locked pytest tests/integration/test_loopback.py -q
+uv run --locked pytest
+```
+
+Timeout/cancellation tests assert all tracked sockets close and server tasks
+terminate. The smoke binds only to 127.0.0.1 on ephemeral ports and accepts no
+external destination. No captures or public probes are performed.
+
+WSL is not installed locally and the current process is not Administrator.
+No elevation or restart was attempted. Native Ubuntu/Windows CI is configured
+to run the smoke, independently of the local WSL setup. Hosted evidence pending.
+ADR-001 is proposed for independent review, not a claim that future privacy
+controls or namespace isolation are already implemented.

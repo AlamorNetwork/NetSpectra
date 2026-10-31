@@ -9,11 +9,15 @@ metrics, hypotheses and unknowns.
 
 ## Current scope
 
-W01 T01–T04: repository layout, contribution templates, pinned Python,
+W01 T01–T06: repository layout, contribution templates, pinned Python,
 dependency configuration, Ruff, pytest and a CI smoke workflow. The package currently
 exposes only its version. Experiment and completed Run JSON Schemas include
 synthetic fixtures and acceptance tests; see [contract guide](schemas/README.md).
-No probes, captures, API, UI or lab provisioning exist.
+The fixed [loopback smoke](lab/README.md) echoes synthetic bytes over TCP/UDP on
+127.0.0.1 only. No general probes, captures, API, UI or namespace provisioning
+exist. Local WSL setup is pending; native Ubuntu is covered by CI.
+The scope/data policy is recorded in [ADR-001](docs/ADR/ADR-001-lab-scope-and-data-policy.md),
+pending independent review.
 
 ## Quickstart
 

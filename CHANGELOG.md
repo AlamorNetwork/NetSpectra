@@ -2,6 +2,9 @@
 
 ## 0.1.0 — Unreleased
 
+- Add bounded IPv4 loopback TCP/UDP smoke and timeout/cancellation cleanup tests.
+- Run loopback smoke in Ubuntu/Windows CI; document pending local WSL setup.
+- Record proposed lab/consent/data policy in ADR-001 for independent review.
 - Add v0.1.0 Experiment and terminal Run JSON Schemas, synthetic examples and
   contract validation tests including RFC3339 calendar validation.
 - Add W01 T01–T03 repository foundation, bilingual quickstart and licensing.

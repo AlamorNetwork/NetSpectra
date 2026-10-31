@@ -420,8 +420,10 @@ Do not implement later sprints, collect external user traffic, or access endpoin
 | شناسه | وضعیت | شاهد / مانع |
 |---|---|---|
 | PPRL-M01-W01-T01 | REVIEW | ساختار و README و LICENSE؛ تست نصب و build محلی موفق؛ بازبینی مستقل مانده |
-| PPRL-M01-W01-T02 | BLOCKED | قالب‌ها و قواعد آماده؛ اعمال branch protection نیازمند مخزن GitHub |
+| PPRL-M01-W01-T02 | BLOCKED | قالب‌ها و قواعد آماده؛ مخزن GitHub متصل است؛ branch protection هنوز اعمال نشده |
 | PPRL-M01-W01-T03 | REVIEW | دریافت و نصب عادی با uv sync --locked موفق؛ Ruff و قالب‌بندی و ۱ تست پاس؛ بازبینی مستقل و CI میزبانی‌شده مانده |
 | PPRL-M01-W01-T04 | REVIEW | دو JSON Schema و نمونه‌های مصنوعی معتبر/نامعتبر؛ تست اعتبارسنجی محلی؛ بازبینی مستقل مانده |
+| PPRL-M01-W01-T05 | BLOCKED | TCP/UDP روی Windows و تست پاک‌سازی موفق؛ اجرای Linux در CI؛ نصب محلی WSL نیازمند Administrator |
+| PPRL-M01-W01-T06 | REVIEW | ADR-001 درباره lab-only و رضایت و داده حساس ثبت شد؛ بازبینی مستقل مانده |
 
 جزئیات: `weekly/W01.md` و `../reports/w01/README.md`. موارد بالا هنوز Done نیستند.
