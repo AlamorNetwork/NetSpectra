@@ -72,6 +72,9 @@ def test_secure_worker_real_handshake_echo_and_certificate_failure(protocol, fai
         for sample in result["observations"]:
             assert sample["bytes_echoed"] == (0 if failure else 3)
             assert (sample["handshake_ms"] is None) == failure
+            if failure:
+                assert sample["failure_reason"] == "certificate_verification_failed"
+                assert sample["expected_certificate_rejection"] is True
             if not failure:
                 assert sample["handshake_ms"] > 0 and sample["request_ms"] > 0
             if protocol == "h3":

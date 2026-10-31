@@ -96,6 +96,7 @@ class HTTP3(QuicConnectionProtocol):
         self.headers = {}
         self.pending = {}
         self.handshake = False
+        self.termination = None
 
     def datagram_received(self, data, addr):
         if self.lab and addr[0] not in self.lab["peers"]:
@@ -106,6 +107,7 @@ class HTTP3(QuicConnectionProtocol):
         if isinstance(event, HandshakeCompleted):
             self.handshake = True
         if isinstance(event, ConnectionTerminated):
+            self.termination = event
             for future in self.pending.values():
                 if not future.done():
                     future.set_exception(ConnectionError("quic_connection_closed"))
@@ -313,6 +315,13 @@ async def client(config: dict) -> dict:
         data = json.dumps({"token": config["token"], "payload": payload}).encode()
         started = time.perf_counter()
         stage = "handshake"
+        created = []
+
+        def create_protocol(*args, _created=created, **kwargs):
+            protocol = HTTP3(*args, **kwargs)
+            _created.append(protocol)
+            return protocol
+
         try:
             async with asyncio.timeout(4):
                 if config["protocol"] == "tls":
@@ -361,7 +370,7 @@ async def client(config: dict) -> dict:
                         config["host"],
                         config["port"],
                         configuration=configuration,
-                        create_protocol=HTTP3,
+                        create_protocol=create_protocol,
                     ) as connection:
                         sample["handshake_ms"] = (time.perf_counter() - started) * 1000
                         stage = "request"
@@ -383,14 +392,28 @@ async def client(config: dict) -> dict:
         except ssl.SSLCertVerificationError:
             sample["failure_reason"] = "certificate_verification_failed"
         except ConnectionError:
+            # TLS alerts bad_certificate / certificate_unknown / unknown_ca.
+            certificate_error = (
+                created
+                and created[0].termination is not None
+                and created[0].termination.error_code in {256 + 42, 256 + 46, 256 + 48}
+            )
             sample["failure_reason"] = (
-                "quic_or_tls_handshake_failed"
-                if stage == "handshake"
-                else "connection_closed"
+                "certificate_verification_failed"
+                if certificate_error
+                else (
+                    "quic_or_tls_handshake_failed"
+                    if stage == "handshake"
+                    else "connection_closed"
+                )
             )
         except (OSError, ValueError, asyncio.IncompleteReadError):
             sample["failure_reason"] = stage + "_failed"
         sample["rtt_ms"] = (time.perf_counter() - started) * 1000
+        sample["expected_certificate_rejection"] = (
+            bool(config.get("controlled_failure"))
+            and sample["failure_reason"] == "certificate_verification_failed"
+        )
         if logger:
             sample["qlog"] = logger.export()
             sample["retry_packets"] = read_qlog(sample["qlog"])["retry_packets"]

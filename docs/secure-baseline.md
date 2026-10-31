@@ -3,7 +3,8 @@
 The cluster protocol selector supports `h3` (QUIC / HTTP3 POST echo, aioquic) and
 `tls` (TCP / TLS 1.3 framed JSON echo). Select direct client/backend nodes, a free
 port in 28000–28999, repetitions and seed. Optional PCAP uses UDP for h3 and TCP
-for TLS. The pre-existing TCP/UDP relay remains available; secure relay topologies
+for TLS. Secure runs capture both client and backend vantage points so an outgoing
+Initial and a silent destination can be distinguished. The pre-existing TCP/UDP relay remains available; secure relay topologies
 are rejected explicitly in this milestone.
 
 ## Operator workflow
@@ -17,7 +18,8 @@ are rejected explicitly in this milestone.
    PCAP. Details include per-sample establishment/request/total durations and qlog.
 4. To test rejection, select the explicit controlled certificate-failure checkbox
    on a secure topology. It omits the ephemeral trust anchor; verification stays
-   enabled. A failed run is expected and remains failed in history.
+   enabled. A certificate rejection is expected and remains failed in history. A timeout or
+   transport failure does not prove certificate verification was reached.
 
 Fresh worker provisioning uses a new dedicated install directory via SSH clone,
 followed by the dependency step above. Existing folders are never bootstrap targets.

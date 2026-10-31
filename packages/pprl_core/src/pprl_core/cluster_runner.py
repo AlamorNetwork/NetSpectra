@@ -31,6 +31,13 @@ async def execute(
     processes = []
     captures = []
     certificates = {}
+    capture_nodes = list(
+        dict.fromkeys(
+            definition["servers"]
+            + ([definition["load_balancer"]] if definition["load_balancer"] else [])
+            + (definition["clients"] if definition["protocol"] in {"tls", "h3"} else [])
+        )
+    )
     token = secrets.token_urlsafe(32)
     shared = {
         "token": token,
@@ -69,15 +76,7 @@ async def execute(
                 raise cli.CLIError("protocol_dependency_unavailable")
             if (
                 definition.get("capture")
-                and node.node_id
-                in set(
-                    definition["servers"]
-                    + (
-                        [definition["load_balancer"]]
-                        if definition["load_balancer"]
-                        else []
-                    )
-                )
+                and node.node_id in capture_nodes
                 and not checked.get("capture_available")
             ):
                 raise cli.CLIError("capture_tool_unavailable")
@@ -107,9 +106,7 @@ async def execute(
                 node.address: f"198.18.0.{index + 1}"
                 for index, node in enumerate(nodes.values())
             }
-            for identifier in dict.fromkeys(
-                definition["servers"] + ([lb] if lb else [])
-            ):
+            for identifier in capture_nodes:
                 pairs = [
                     [nodes[edge["from"]].address, nodes[edge["to"]].address]
                     for edge in plan["edges"]
