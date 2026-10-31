@@ -119,3 +119,21 @@ https://github.com/AlamorNetwork/NetSpectra/actions/runs/41175594893
 Draft review: https://github.com/AlamorNetwork/NetSpectra/pull/1
 ADR-001 is proposed for independent review, not a claim that future privacy
 controls or namespace isolation are already implemented.
+
+## Ubuntu server execution — 2026-10-31
+
+A separate Ubuntu 24.04.4 LTS x86_64 server cloned code e2e227d. Dedicated tools
+were installed for this project: uv 0.12.5 and managed Python 3.12.12. No system
+Python packages were installed. The system Python 3.12.3 loopback also succeeded.
+
+Observed with pinned Python: uv sync --locked succeeded, Ruff passed, five files
+passed format check, 76 tests passed in 0.83s. TCP and UDP each echoed 26 bytes
+on 127.0.0.1. No public measurement port was opened.
+
+The first build was stopped because its cache lived inside the source tree.
+.tools/ is now ignored to exclude downloaded tools/caches from source artifacts;
+final package build evidence is recorded after rebuilding.
+
+Server credentials, addresses and private keys are deliberately absent. T05 is
+ready for review using native Ubuntu evidence; local WSL is no longer required
+for this iteration. Human review and proposed ADR approval remain pending.

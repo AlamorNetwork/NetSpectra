@@ -15,7 +15,8 @@ exposes only its version. Experiment and completed Run JSON Schemas include
 synthetic fixtures and acceptance tests; see [contract guide](schemas/README.md).
 The fixed [loopback smoke](lab/README.md) echoes synthetic bytes over TCP/UDP on
 127.0.0.1 only. No general probes, captures, API, UI or namespace provisioning
-exist. Local WSL setup is pending; native Ubuntu is covered by CI.
+exist. A separate Ubuntu 24 server and native Ubuntu CI have passed the smoke
+and all tests; local WSL setup remains optional.
 The scope/data policy is recorded in [ADR-001](docs/ADR/ADR-001-lab-scope-and-data-policy.md),
 pending independent review.
 
