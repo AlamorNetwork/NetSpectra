@@ -231,7 +231,9 @@ def test_network_failure_preserves_partial_observations_and_detects_tamper(
         cli, "_source_metadata", lambda: {"git_sha": "a" * 40, "dirty": False}
     )
 
-    async def fail(transport, plan, definition, payloads, observations):
+    async def fail(
+        transport, plan, definition, payloads, observations, capture_results=None
+    ):
         observations.append({"client": "a", "backend": "b", "bytes_echoed": 10})
         raise cli.CLIError("remote_run_failed")
 

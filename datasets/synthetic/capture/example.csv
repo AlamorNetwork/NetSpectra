@@ -1,0 +1,2 @@
+source_ip,destination_ip,source_port,destination_port,protocol,packets,ip_bytes,header_bytes
+198.18.0.1,198.18.0.2,42000,28080,udp,2,106,56

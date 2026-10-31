@@ -31,6 +31,7 @@ packages = ["packages/pprl_core/src/pprl_core"]
 [tool.hatch.build.targets.wheel.force-include]
 "schemas/experiment.schema.json" = "pprl_core/schemas/experiment.schema.json"
 "schemas/run.schema.json" = "pprl_core/schemas/run.schema.json"
+"schemas/capture.schema.json" = "pprl_core/schemas/capture.schema.json"
 "clients/web/assets" = "pprl_core/web_assets"
 
 [tool.pytest.ini_options]

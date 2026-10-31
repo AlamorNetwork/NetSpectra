@@ -16,6 +16,10 @@ SSH-managed inventory, explicit client/backend/optional-balancer selection, and
 bounded synthetic TCP/UDP runs directly between the selected nodes. Local and
 inter-server results are separate.
 
+Optional [scoped capture](docs/capture.md) records header-only redacted PCAP and
+per-flow CSV on the selected backends/relay, with authenticated downloads and
+per-vantage packet/IPv4-byte counts.
+
 A research lab for reproducible measurements of TCP, TLS, QUIC and HTTP/3 under
 controlled impairment and simulated DPI. Measurements use lab-owned endpoints
 and synthetic traffic by default. Results distinguish observed facts, derived

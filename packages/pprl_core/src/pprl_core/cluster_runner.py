@@ -1,6 +1,7 @@
 """Short-lived agents over SSH; data flows between selected nodes, never via SSH."""
 
 import asyncio
+import base64
 import contextlib
 import hashlib
 import json
@@ -10,6 +11,7 @@ import uuid
 from pathlib import Path
 
 from pprl_core import cli
+from pprl_core.capture import flows_csv, redact_log, sanitize_pcap
 from pprl_core.cluster import Inventory
 from pprl_core.cluster_ssh import SSH
 from pprl_core.workload import seeded_payload
@@ -21,9 +23,11 @@ async def execute(
     definition: dict,
     payloads: list[bytes],
     observations: list[dict],
+    capture_results: list[dict] | None = None,
 ) -> list[dict]:
     nodes = {node["node_id"]: transport_node(node) for node in plan["nodes"]}
     processes = []
+    captures = []
     token = secrets.token_urlsafe(32)
     shared = {
         "token": token,
@@ -54,8 +58,22 @@ async def execute(
         for node in nodes.values():
             checked = await transport.preflight(node)
             plan.setdefault("agent_reports", {})[node.node_id] = checked
-            if checked.get("agent_version") != 1:
+            if checked.get("agent_version") not in {1, 2}:
                 raise cli.CLIError("agent_version_mismatch")
+            if (
+                definition.get("capture")
+                and node.node_id
+                in set(
+                    definition["servers"]
+                    + (
+                        [definition["load_balancer"]]
+                        if definition["load_balancer"]
+                        else []
+                    )
+                )
+                and not checked.get("capture_available")
+            ):
+                raise cli.CLIError("capture_tool_unavailable")
         lb = definition["load_balancer"]
         peers = (
             [nodes[lb].address]
@@ -73,6 +91,25 @@ async def execute(
                     "backends": [nodes[n].address for n in definition["servers"]],
                 },
             )
+        if definition.get("capture"):
+            address_map = {
+                node.address: f"198.18.0.{index + 1}"
+                for index, node in enumerate(nodes.values())
+            }
+            for identifier in dict.fromkeys(
+                definition["servers"] + ([lb] if lb else [])
+            ):
+                pairs = [
+                    [nodes[edge["from"]].address, nodes[edge["to"]].address]
+                    for edge in plan["edges"]
+                    if identifier in {edge["from"], edge["to"]}
+                ]
+                if not pairs:
+                    continue
+                capture = await launch(
+                    identifier, "capture", {"pairs": pairs, "address_map": address_map}
+                )
+                captures.append((identifier, capture))
         for client in definition["clients"]:
             targets = [lb] if lb else definition["servers"]
             for target in targets:
@@ -107,6 +144,26 @@ async def execute(
                 observations.extend(samples)
         return observations
     finally:
+        for identifier, capture in captures:
+            if capture.stdin:
+                capture.stdin.close()
+            try:
+                output, _ = await asyncio.wait_for(capture.communicate(), 5)
+                result = json.loads(output)
+                if (
+                    capture.returncode
+                    or not isinstance(result, dict)
+                    or "pcap_base64" not in result
+                ):
+                    raise cli.CLIError("capture_failed")
+                result["node_id"] = identifier
+                if capture_results is not None:
+                    capture_results.append(result)
+            except (ValueError, OSError, TimeoutError, TypeError, cli.CLIError):
+                if capture_results is not None:
+                    capture_results.append(
+                        {"node_id": identifier, "error": "capture_failed"}
+                    )
         for process in reversed(processes):
             if process.stdin:
                 process.stdin.close()
@@ -130,12 +187,15 @@ def run(
     transport: SSH,
     identifier: str,
     cancel: threading.Event,
+    capture_override: bool | None = None,
 ) -> dict:
     topology = inventory.topology(identifier)
     plan = inventory.plan(topology)
     if plan["missing_host_keys"]:
         raise cli.CLIError("host_key_required")
     definition = topology.model_dump()
+    if capture_override is not None:
+        definition["capture"] = capture_override
     payloads = [
         seeded_payload(topology.run_seed, index)
         for index in range(topology.repetitions)
@@ -153,12 +213,20 @@ def run(
         "observations": [],
         "workload_sha256": hashlib.sha256(b"".join(payloads)).hexdigest(),
         "failure_reason": None,
+        "captures": [],
     }
 
     async def perform():
         async with asyncio.timeout(60):
             task = asyncio.create_task(
-                execute(transport, plan, definition, payloads, record["observations"])
+                execute(
+                    transport,
+                    plan,
+                    definition,
+                    payloads,
+                    record["observations"],
+                    record["captures"],
+                )
             )
             try:
                 while not task.done():
@@ -180,10 +248,65 @@ def run(
     except TimeoutError:
         record.update(status="failed", failure_reason="timeout")
     except cli.CLIError as error:
-        record.update(status="failed", failure_reason=str(error))
+        record.update(status="failed", failure_reason=redact_log(str(error)))
     except (ValueError, OSError, KeyError):
         record.update(status="failed", failure_reason="remote_transport_error")
     record["finished_at"] = cli._now()
+    artifacts = cli._path(root, "network-captures", record["run_id"])
+    for capture in record["captures"]:
+        if "pcap_base64" not in capture:
+            if record["status"] == "succeeded":
+                record.update(status="failed", failure_reason="capture_failed")
+            continue
+        encoded = capture.pop("pcap_base64")
+        try:
+            cli._validate(capture, "capture")
+            data = base64.b64decode(encoded, validate=True)
+            if (
+                len(data) > 400000
+                or hashlib.sha256(data).hexdigest() != capture["pcap_sha256"]
+            ):
+                raise ValueError("capture_integrity_failed")
+            alias = {
+                node["node_id"]: f"198.18.0.{index + 1}"
+                for index, node in enumerate(plan["nodes"])
+            }
+            pairs = [
+                [alias[edge["from"]], alias[edge["to"]]]
+                for edge in plan["edges"]
+                if capture["node_id"] in {edge["from"], edge["to"]}
+            ]
+            checked = sanitize_pcap(
+                data,
+                {ip: ip for ip in alias.values()},
+                pairs,
+                definition["protocol"],
+                definition["port"],
+            )
+            if (
+                checked["pcap_sha256"] != capture["pcap_sha256"]
+                or checked["flows"] != capture["flows"]
+                or checked["packets"] != capture["packets"]
+                or checked["ip_bytes"] != capture["ip_bytes"]
+            ):
+                raise ValueError("capture_projection_mismatch")
+        except (ValueError, TypeError, KeyError, cli.CLIError):
+            identifier = capture.get("node_id", "unknown")
+            capture.clear()
+            capture.update(node_id=identifier, error="capture_integrity_failed")
+            if record["status"] == "succeeded":
+                record.update(
+                    status="failed", failure_reason="capture_integrity_failed"
+                )
+            continue
+        artifacts.mkdir(parents=True, exist_ok=True)
+        prefix = artifacts / capture["node_id"]
+        prefix.with_suffix(".pcap").write_bytes(data)
+        csv_data = flows_csv(capture)
+        prefix.with_suffix(".csv").write_bytes(csv_data)
+        capture["csv_sha256"] = hashlib.sha256(csv_data).hexdigest()
+        if capture["packets"] == 0 and record["status"] == "succeeded":
+            record.update(status="failed", failure_reason="capture_empty")
     directory = cli._path(root, "network-runs")
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / (record["run_id"] + ".json")

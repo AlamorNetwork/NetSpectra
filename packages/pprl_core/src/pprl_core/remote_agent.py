@@ -8,6 +8,7 @@ import json
 import os
 import platform
 import select
+import shutil
 import socket
 import struct
 import subprocess
@@ -186,7 +187,9 @@ def client(config: dict) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("role", choices=["check", "server", "relay", "client"])
+    parser.add_argument(
+        "role", choices=["check", "server", "relay", "client", "capture"]
+    )
     args = parser.parse_args()
     if args.role == "check":
         checkout = Path(__file__).resolve().parents[4]
@@ -200,7 +203,10 @@ def main() -> int:
         print(
             json.dumps(
                 {
-                    "agent_version": 1,
+                    "agent_version": 2,
+                    "capture_available": bool(
+                        shutil.which("tcpdump") and shutil.which("timeout")
+                    ),
                     "git_sha": source.stdout.strip()
                     if source.returncode == 0
                     else None,
@@ -215,6 +221,12 @@ def main() -> int:
         line = sys.stdin.buffer.readline(16385)
         if len(line) > 16384:
             raise ValueError("invalid_input")
+        if args.role == "capture":
+            from pprl_core.capture import session
+
+            result = session(json.loads(line))
+            print(json.dumps(result), flush=True)
+            return 0
         config = validate(json.loads(line), args.role)
         result = (
             client(config)

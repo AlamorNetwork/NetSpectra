@@ -59,6 +59,11 @@ class Login(BaseModel):
     password: str = Field(min_length=1, max_length=128)
 
 
+class NetworkExecution(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    capture: bool | None = Field(default=None, strict=True)
+
+
 def _password_hash(password: str, salt: str) -> str:
     return hashlib.scrypt(
         password.encode(), salt=bytes.fromhex(salt), n=16384, r=8, p=1, dklen=32
@@ -160,6 +165,7 @@ class Controller:
         execution: Execution | None = None,
         replay: bool = False,
         kind: str | None = None,
+        capture_override: bool | None = None,
     ) -> dict:
         if kind == "network":
             self.inventory.plan(self.inventory.topology(identifier))
@@ -180,6 +186,7 @@ class Controller:
                 "started_at": cli._now(),
                 "run_id": None,
                 "error": None,
+                "capture_override": capture_override,
             }
             event = threading.Event()
             cli._atomic_write(self._job_file(job["job_id"]), job)
@@ -213,7 +220,12 @@ class Controller:
                 outcome = {"status": "succeeded", "error": None, "result": result}
             elif kind == "network":
                 result = cluster_runner.run(
-                    self.root, self.inventory, self.ssh, target, event
+                    self.root,
+                    self.inventory,
+                    self.ssh,
+                    target,
+                    event,
+                    capture_override=self.jobs[identifier].get("capture_override"),
                 )
                 outcome = {
                     "status": result["status"],
@@ -570,12 +582,38 @@ def create_app(root: Path, allowed_hosts: list[str] | None = None) -> FastAPI:
         return request.app.state.controller.inventory.plan(body)
 
     @api.post("/cluster/topologies/{identifier}/run", status_code=202)
-    def run_topology(identifier: str, request: Request):
-        return request.app.state.controller.start(identifier, kind="network")
+    def run_topology(identifier: str, body: NetworkExecution, request: Request):
+        return request.app.state.controller.start(
+            identifier, kind="network", capture_override=body.capture
+        )
 
     @api.get("/cluster/runs/{identifier}")
     def network_details(identifier: str, request: Request):
         return request.app.state.controller.network_record(identifier)
+
+    @api.get("/cluster/runs/{identifier}/capture/{node_id}/{kind}")
+    def capture_file(identifier: str, node_id: str, kind: str, request: Request):
+        record = request.app.state.controller.network_record(identifier)
+        if kind not in {"pcap", "csv"}:
+            raise HTTPException(404, "capture_not_found")
+        capture = next(
+            (
+                item
+                for item in record.get("captures", [])
+                if item.get("node_id") == node_id and not item.get("error")
+            ),
+            None,
+        )
+        if capture is None:
+            raise HTTPException(404, "capture_not_found")
+        path = cli._path(root, "network-captures", identifier, node_id + "." + kind)
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        if not hmac.compare_digest(digest, capture[kind + "_sha256"]):
+            raise cli.CLIError("capture_integrity_failed")
+        media = "application/vnd.tcpdump.pcap" if kind == "pcap" else "text/csv"
+        return FileResponse(
+            path, media_type=media, filename=identifier + "-" + node_id + "." + kind
+        )
 
     app.include_router(api)
     assets = _assets()

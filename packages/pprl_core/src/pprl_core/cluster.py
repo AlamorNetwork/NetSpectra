@@ -61,6 +61,7 @@ class Topology(BaseModel):
     port: int = Field(default=28080, ge=28000, le=28999, strict=True)
     repetitions: int = Field(default=3, ge=1, le=10, strict=True)
     run_seed: int = Field(default=42, ge=0, le=4294967295, strict=True)
+    capture: bool = Field(default=False, strict=True)
 
     @model_validator(mode="after")
     def distinct_roles(self):
