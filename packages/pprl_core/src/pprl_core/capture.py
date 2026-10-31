@@ -293,6 +293,11 @@ class TcpdumpCapture:
         self.process = None
 
     def start(self) -> None:
+        if sys.platform != "linux":
+            raise CaptureError("capture_requires_linux")
+        import resource
+
+        resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
         binary = shutil.which("tcpdump")
         watchdog = shutil.which("timeout")
         if not binary or not watchdog:
@@ -314,8 +319,6 @@ class TcpdumpCapture:
                 "-U",
                 "-c",
                 str(MAX_PACKETS),
-                "-Z",
-                "root",
                 "-w",
                 str(self.path),
                 self.filter,
