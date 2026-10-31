@@ -110,6 +110,11 @@ def serve(config: dict, relay: bool = False) -> dict:
     requests = 0
     with socket.socket(socket.AF_INET, kind) as listener:
         # No SO_REUSEPORT and no service stop: an occupied port simply fails.
+        if os.name == "nt":
+            listener.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        elif kind == socket.SOCK_STREAM:
+            # Permit TIME_WAIT reuse while preserving active listener exclusion.
+            listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         listener.bind((config["bind_address"], config["port"]))
         if kind == socket.SOCK_STREAM:
             listener.listen(8)

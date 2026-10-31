@@ -308,7 +308,7 @@ def test_orchestrator_real_children_direct_and_balanced(tmp_path, protocol, bala
         servers=["n1"] if balanced == "shared" else ["n2", "n3"],
         load_balancer="n4" if balanced else None,
         protocol=protocol,
-        port=available_port("127.0.0.2"),
+        port=available_port("0.0.0.0"),
     )
     script = """import json,sys
 from pprl_core import remote_agent as agent
@@ -380,3 +380,24 @@ def test_shared_client_backend_role_uses_network_hops_and_excludes_self_pairs(tm
         {"from": "iran", "to": "eu"},
         {"from": "eu", "to": "iran"},
     ]
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Linux TCP TIME_WAIT reuse policy")
+def test_completed_tcp_run_can_rebind_without_displacing_active_listener(workers):
+    config = {
+        "protocol": "tcp",
+        "port": available_port(),
+        "token": "a" * 40,
+        "node_id": "backend",
+        "peers": ["127.0.0.1"],
+        "bind_address": "127.0.0.1",
+    }
+    for _ in range(2):
+        process, ready = workers("server", config)
+        assert ready["ready"]
+        result = remote_agent.client(
+            config | {"node_id": "client", "host": "127.0.0.1", "payloads": ["aa55"]}
+        )
+        assert result["status"] == "succeeded"
+        process.stdin.close()
+        assert process.wait(timeout=5) == 0
