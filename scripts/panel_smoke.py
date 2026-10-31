@@ -1,12 +1,12 @@
 """Verify a deployed panel using its explicitly trusted certificate and account."""
 
 import argparse
-import http.cookiejar
 import json
 import ssl
 import time
-import urllib.request
 from pathlib import Path
+
+import httpx
 
 
 def main() -> None:
@@ -17,27 +17,18 @@ def main() -> None:
     args = parser.parse_args()
     if not args.url.startswith("https://"):
         parser.error("HTTPS required")
-    opener = urllib.request.build_opener(
-        urllib.request.ProxyHandler({}),
-        urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()),
-        urllib.request.HTTPSHandler(
-            context=ssl.create_default_context(cafile=str(args.certificate))
-        ),
+    client = httpx.Client(
+        base_url=args.url.rstrip("/"),
+        verify=ssl.create_default_context(cafile=str(args.certificate)),
+        trust_env=False,
+        timeout=15,
+        headers={"X-NetSpectra-Client": "panel", "Origin": args.url.rstrip("/")},
     )
 
     def request(path: str, body: dict | None = None) -> dict:
-        data = json.dumps(body).encode() if body is not None else None
-        message = urllib.request.Request(
-            args.url.rstrip("/") + path,
-            data=data,
-            headers={
-                "Content-Type": "application/json",
-                "X-NetSpectra-Client": "panel",
-                "Origin": args.url.rstrip("/"),
-            },
-        )
-        with opener.open(message, timeout=15) as response:
-            return json.load(response)
+        response = client.get(path) if body is None else client.post(path, json=body)
+        response.raise_for_status()
+        return response.json()
 
     def wait(job: dict) -> dict:
         deadline = time.monotonic() + 40
@@ -71,6 +62,7 @@ def main() -> None:
         runs.extend([result["record"]["run_id"], repeated["record"]["run_id"]])
     request("/api/logout", {})
     assert request("/api/session")["authenticated"] is False
+    client.close()
     print(json.dumps({"health": health, "verified_runs": runs}, indent=2))
 
 
