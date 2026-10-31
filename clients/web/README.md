@@ -20,6 +20,18 @@ password and must be protected. Sessions expire after twelve hours or restart.
 
 ## Capabilities and boundaries
 
+### Selected network nodes
+
+Open **سرورها و مسیرها** to add/edit SSH nodes, display the controller public key,
+verify and pin host keys, install the worker in a new directory, and check SSH.
+Create a topology by selecting clients, servers and an optional load balancer.
+Run it and download its network report. No existing application port is displaced.
+See [ADR-002](../../docs/ADR/ADR-002-multi-server-lab.md) for installation, limits
+and the separation of control/data traffic. The existing loopback engine below
+remains a local engine check, not evidence of inter-server connectivity.
+
+### Local engine checks
+
 - Create immutable named TCP/UDP configurations with seed, repetitions and bounded
   timeout/retry controls. Copy a configuration to adjust it.
 - Execute one job at a time, stop it cooperatively, inspect real artifacts,
@@ -31,7 +43,7 @@ password and must be protected. Sessions expire after twelve hours or restart.
 - This is a single administrator panel, not a general shell, multi-user service,
   packet capture tool or implementation of W03 namespace experiments.
 
-The same CLI schema validation, path checks, content hashes and execution bounds
+The local engine's CLI schema validation, path checks, content hashes and execution bounds
 apply. POST requests require the client header and a matching Origin when supplied.
 Cookies are HttpOnly and SameSite Strict, and Secure on HTTPS. Public listening
 requires TLS, with explicit allowed hosts. Proxy headers are disabled. Login has

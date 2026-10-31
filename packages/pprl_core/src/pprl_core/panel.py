@@ -1,6 +1,7 @@
 """Private operator panel for the existing synthetic experiment engine."""
 
 import argparse
+import asyncio
 import hashlib
 import hmac
 import json
@@ -24,7 +25,9 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from pprl_core import __version__, cli
+from pprl_core import __version__, cli, cluster_runner
+from pprl_core.cluster import Inventory, Node, Topology
+from pprl_core.cluster_ssh import SSH
 
 COOKIE = "netspectra_session"
 
@@ -79,6 +82,8 @@ def initialize(root: Path, credentials_file: Path) -> None:
 class Controller:
     def __init__(self, root: Path):
         self.root = root
+        self.inventory = Inventory(root)
+        self.ssh = SSH(root)
         self.lock = threading.RLock()
         self.executor = ThreadPoolExecutor(
             max_workers=1, thread_name_prefix="panel-run"
@@ -150,9 +155,20 @@ class Controller:
         return self.configuration(record)
 
     def start(
-        self, identifier: str, execution: Execution | None = None, replay: bool = False
+        self,
+        identifier: str,
+        execution: Execution | None = None,
+        replay: bool = False,
+        kind: str | None = None,
     ) -> dict:
-        cli.inspect(self.root, identifier)  # validate ownership/path before enqueueing
+        if kind == "network":
+            self.inventory.plan(self.inventory.topology(identifier))
+        elif kind in {"bootstrap", "preflight"}:
+            self.inventory.node(identifier)
+        elif kind is None:
+            cli.inspect(self.root, identifier)
+        else:
+            raise cli.CLIError("invalid_job_kind")
         with self.lock:
             if self.active:
                 raise HTTPException(409, "runner_busy")
@@ -160,7 +176,7 @@ class Controller:
                 "job_id": "job-" + uuid.uuid4().hex,
                 "status": "running",
                 "target": identifier,
-                "kind": "replay" if replay else "run",
+                "kind": kind or ("replay" if replay else "run"),
                 "started_at": cli._now(),
                 "run_id": None,
                 "error": None,
@@ -183,16 +199,37 @@ class Controller:
     ) -> None:
         with self.lock:
             target = self.jobs[identifier]["target"]
+            kind = self.jobs[identifier]["kind"]
         try:
-            if replay:
+            if kind in {"bootstrap", "preflight"}:
+                node = self.inventory.node(target)
+                if kind == "bootstrap":
+                    source = cli._source_metadata()
+                    if source["dirty"]:
+                        raise cli.CLIError("clean_source_required")
+                    result = asyncio.run(self.ssh.bootstrap(node, source["git_sha"]))
+                else:
+                    result = asyncio.run(self.ssh.preflight(node))
+                outcome = {"status": "succeeded", "error": None, "result": result}
+            elif kind == "network":
+                result = cluster_runner.run(
+                    self.root, self.inventory, self.ssh, target, event
+                )
+                outcome = {
+                    "status": result["status"],
+                    "run_id": result["run_id"],
+                    "error": result["failure_reason"],
+                }
+            elif replay:
                 result, _ = cli.replay(self.root, target, _cancel_event=event)
             else:
                 result, _ = cli.run(self.root, target, **policy, _cancel_event=event)
-            outcome = {
-                "status": result["status"],
-                "run_id": result["run_id"],
-                "error": result["failure_reason"],
-            }
+            if kind not in {"bootstrap", "preflight", "network"}:
+                outcome = {
+                    "status": result["status"],
+                    "run_id": result["run_id"],
+                    "error": result["failure_reason"],
+                }
         except cli.CLIError as error:
             outcome = {"status": "failed", "error": str(error)}
         except Exception:
@@ -247,6 +284,8 @@ class Controller:
             )[:20]
             active = dict(self.jobs[self.active]) if self.active else None
         return {
+            "cluster": self.inventory.read(),
+            "network_runs": self.network_runs(),
             "experiments": experiments[:200],
             "runs": runs[:50],
             "jobs": jobs,
@@ -257,6 +296,42 @@ class Controller:
                 "succeeded": sum(r["status"] == "succeeded" for r in runs),
             },
         }
+
+    def network_runs(self) -> list[dict]:
+        directory = cli._path(self.root, "network-runs")
+        if not directory.exists():
+            return []
+        records = []
+        for path in directory.glob("net-*.json"):
+            try:
+                records.append(self.network_record(path.stem))
+            except (cli.CLIError, OSError, KeyError, ValueError):
+                records.append(
+                    {
+                        "run_id": path.stem,
+                        "status": "integrity_error",
+                        "started_at": "",
+                        "topology": {"name": "گزارش نیازمند بررسی"},
+                        "observations": [],
+                        "failure_reason": "artifact_integrity_failed",
+                    }
+                )
+        return sorted(records, key=lambda record: record["started_at"], reverse=True)[
+            :50
+        ]
+
+    def network_record(self, identifier: str) -> dict:
+        import re
+
+        if not re.fullmatch(r"net-[0-9a-f]{32}", identifier):
+            raise cli.CLIError("invalid_network_run_id")
+        path = cli._path(self.root, "network-runs", identifier + ".json")
+        expected = cli._read(path.with_suffix(".sha256"))["sha256"]
+        if not hmac.compare_digest(
+            hashlib.sha256(path.read_bytes()).hexdigest(), expected
+        ):
+            raise cli.CLIError("artifact_integrity_failed")
+        return cli._read(path)
 
 
 def _assets() -> Path:
@@ -404,7 +479,7 @@ def create_app(root: Path, allowed_hosts: list[str] | None = None) -> FastAPI:
             "version": __version__,
             "platform": platform.system(),
             "source": source,
-            "scope": "ipv4_loopback_only",
+            "scope": "loopback_and_selected_owned_nodes",
         }
 
     @api.post("/experiments", status_code=201)
@@ -436,6 +511,71 @@ def create_app(root: Path, allowed_hosts: list[str] | None = None) -> FastAPI:
     @api.post("/jobs/{identifier}/cancel")
     def cancel(identifier: str, request: Request):
         return request.app.state.controller.cancel(identifier)
+
+    @api.post("/cluster/nodes", status_code=201)
+    def add_node(body: Node, request: Request):
+        return request.app.state.controller.inventory.add_node(body)
+
+    @api.get("/cluster/key")
+    def controller_key(request: Request):
+        return {"public_key": request.app.state.controller.ssh.public_key()}
+
+    @api.post("/cluster/nodes/{identifier}/update")
+    def update_node(identifier: str, body: Node, request: Request):
+        controller = request.app.state.controller
+        with controller.lock:
+            if controller.active:
+                raise HTTPException(409, "runner_busy")
+            return controller.inventory.update_node(identifier, body)
+
+    @api.post("/cluster/key", status_code=201)
+    def create_controller_key(request: Request):
+        controller = request.app.state.controller
+        with controller.lock:
+            return {"public_key": controller.ssh.public_key(create=True)}
+
+    @api.post("/cluster/nodes/{identifier}/scan")
+    async def scan_host(identifier: str, request: Request):
+        controller = request.app.state.controller
+        return {
+            "candidates": await controller.ssh.scan(
+                controller.inventory.node(identifier)
+            )
+        }
+
+    class HostKey(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+        host_key: str = Field(
+            max_length=200, pattern=r"^ssh-ed25519 [A-Za-z0-9+/]{40,100}={0,2}$"
+        )
+
+    @api.post("/cluster/nodes/{identifier}/pin")
+    def pin_host(identifier: str, body: HostKey, request: Request):
+        return request.app.state.controller.inventory.pin(identifier, body.host_key)
+
+    @api.post("/cluster/nodes/{identifier}/bootstrap", status_code=202)
+    def bootstrap_node(identifier: str, request: Request):
+        return request.app.state.controller.start(identifier, kind="bootstrap")
+
+    @api.post("/cluster/nodes/{identifier}/preflight", status_code=202)
+    def check_node(identifier: str, request: Request):
+        return request.app.state.controller.start(identifier, kind="preflight")
+
+    @api.post("/cluster/topologies", status_code=201)
+    def add_topology(body: Topology, request: Request):
+        return request.app.state.controller.inventory.add_topology(body)
+
+    @api.post("/cluster/plan")
+    def plan_topology(body: Topology, request: Request):
+        return request.app.state.controller.inventory.plan(body)
+
+    @api.post("/cluster/topologies/{identifier}/run", status_code=202)
+    def run_topology(identifier: str, request: Request):
+        return request.app.state.controller.start(identifier, kind="network")
+
+    @api.get("/cluster/runs/{identifier}")
+    def network_details(identifier: str, request: Request):
+        return request.app.state.controller.network_record(identifier)
 
     app.include_router(api)
     assets = _assets()

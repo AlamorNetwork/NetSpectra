@@ -15,3 +15,8 @@ are truthful. Configuration exposes only implemented controls.
 
 Stack: FastAPI plus buildless local HTML/CSS/JS; no established frontend to
 replace. No external fonts, analytics or runtime CDN dependencies.
+# Multi-server extension
+
+Add a focused Servers and paths surface using existing tokens. Inventory rows,
+explicit role selection and actual remote results; local engine checks stay
+visibly separate. Preserve the Persian RTL charcoal/soft-green design.

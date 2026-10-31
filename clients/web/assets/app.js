@@ -1,3 +1,4 @@
+import { renderCluster } from './cluster.js';
 const $ = (id) => document.getElementById(id);
 const fa = new Intl.NumberFormat('fa-IR');
 const num = (value) => fa.format(value ?? 0);
@@ -65,13 +66,13 @@ async function refresh() {
   }
 }
 function setView() {
-  const value = location.hash.slice(1); currentView = ['experiments','runs','guide'].includes(value) ? value : 'experiments';
-  for (const view of ['experiments','runs','guide']) {
+  const value = location.hash.slice(1); currentView = ['cluster','experiments','runs','guide'].includes(value) ? value : 'cluster';
+  for (const view of ['cluster','experiments','runs','guide']) {
     $(`view-${view}`).hidden = view !== currentView;
     const nav = document.querySelector(`[data-nav="${view}"]`);
     if (view === currentView) nav.setAttribute('aria-current','page'); else nav.removeAttribute('aria-current');
   }
-  $('breadcrumb-current').textContent = {experiments:'آزمایش‌ها',runs:'تاریخچهٔ اجرا',guide:'روش کار'}[currentView];
+  $('breadcrumb-current').textContent = {cluster:'سرورها و مسیرها',experiments:'آزمایش‌های محلی',runs:'تاریخچهٔ اجرا',guide:'روش کار'}[currentView];
 }
 function nameOf(identifier) { return state?.experiments.find(item => item.experiment_id === identifier)?.name || identifier; }
 function render() {
@@ -84,11 +85,15 @@ function render() {
   const active = state.active_job;
   $('active-job').hidden = !active;
   if (active) {
+    $('cancel-job').hidden = ['bootstrap','preflight'].includes(active.kind);
     $('active-title').textContent = active.status === 'cancelling' ? 'در حال توقف آزمایش…' : active.kind === 'replay' ? 'در حال بازاجرای ورودی قبلی…' : `در حال اجرا: ${nameOf(active.target)}`;
+    if (active.kind === 'bootstrap') $('active-title').textContent = `در حال نصب ابزار اجرا: ${active.target}`;
+    if (active.kind === 'preflight') $('active-title').textContent = `در حال بررسی SSH: ${active.target}`;
+    if (active.kind === 'network') $('active-title').textContent = 'در حال آزمایش ارتباط بین سرورها…';
     $('active-description').textContent = 'نتیجه و تلاش‌ها بعد از پایان ثبت می‌شوند.';
     $('cancel-job').disabled = active.status === 'cancelling';
   }
-  renderExperiments(); renderRuns();
+  renderExperiments(); renderRuns(); renderCluster(state);
   $('replay-run').disabled = !!active || !detail || detail.record.status === 'integrity_error';
 }
 function renderExperiments() {
@@ -180,5 +185,6 @@ $('cancel-job').addEventListener('click',async () => { if (!state?.active_job) r
 $('replay-run').addEventListener('click',async () => { if (!detail) return; $('replay-run').disabled = true; try { await api(`/runs/${detail.record.run_id}/replay`,{}); $('run-dialog').close(); toast('بازاجرای ورودی قبلی شروع شد.'); await refresh(); } catch(error) { toast(error.message); $('replay-run').disabled = false; } });
 $('download-run').addEventListener('click',() => { if (!detail) return; const url = URL.createObjectURL(new Blob([JSON.stringify(detail,null,2)],{type:'application/json'})); const link=document.createElement('a'); link.href=url; link.download=`${detail.record.run_id}.json`; link.click(); setTimeout(() => URL.revokeObjectURL(url),1000); });
 window.addEventListener('hashchange',setView);
+window.addEventListener('cluster-refresh', refresh);
 document.addEventListener('visibilitychange',() => { if (!document.hidden && !$('app').hidden) refresh(); });
 api('/session').then(result => result.authenticated ? showApp() : showLogin()).catch(() => { showLogin(); $('login-error').textContent='اتصال به پنل برقرار نشد. صفحه را دوباره باز کنید.'; $('login-error').hidden=false; });

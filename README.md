@@ -11,6 +11,11 @@ The [Persian operator panel](clients/web/README.md) adds authenticated
 configuration, real asynchronous runs, cancellation, history and replay.
 It uses the same engine and immutable artifacts as the CLI.
 
+The panel also has a [multi-server lab foundation](docs/ADR/ADR-002-multi-server-lab.md):
+SSH-managed inventory, explicit client/backend/optional-balancer selection, and
+bounded synthetic TCP/UDP runs directly between the selected nodes. Local and
+inter-server results are separate.
+
 A research lab for reproducible measurements of TCP, TLS, QUIC and HTTP/3 under
 controlled impairment and simulated DPI. Measurements use lab-owned endpoints
 and synthetic traffic by default. Results distinguish observed facts, derived
