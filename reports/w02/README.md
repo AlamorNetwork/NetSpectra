@@ -31,6 +31,15 @@ uv build
 
 ## Ubuntu / GitHub
 
-Pending execution of the committed revision. Evidence will record the source
-commit, command results and equality with the GitHub branch head. No credentials
-or server addresses will be published.
+Code commit c77b4915c8bae24446d81098a91e69cc40e4da95 was pulled from GitHub
+with git pull --ff-only on the separate Ubuntu 24 server. No source files were
+created or edited on the server. Python 3.12.12 and uv 0.12.5 were used.
+
+Observed: locked sync succeeds; Ruff passes; 8 Python files pass formatting;
+97 tests pass in 0.78s. CLI create/list/run/inspect smoke succeeds with 3 samples
+and 78 echoed bytes. Source and wheel build succeed. Server HEAD equals the
+GitHub branch SHA and git status --porcelain is empty. Generated run data remains
+local and ignored. Credentials and server addresses are not published.
+
+The final evidence-only commit is pulled afterward and HEAD equality rechecked.
+Hosted CI is checked separately; server success alone is not a CI assertion.
