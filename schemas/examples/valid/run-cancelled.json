@@ -1,0 +1,25 @@
+{
+  "schema_version": "0.1.0",
+  "run_id": "run-cancelled",
+  "experiment_id": "exp-0001",
+  "scenario_version": 1,
+  "scenario_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "run_seed": 42,
+  "started_at": "2026-10-31T08:00:00Z",
+  "finished_at": "2026-10-31T08:00:01.250Z",
+  "platform": {
+    "os": "Linux",
+    "architecture": "x86_64",
+    "python": "3.12.12"
+  },
+  "git_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "tool_versions": {
+    "pprl": "0.1.0",
+    "aioquic": "synthetic-example"
+  },
+  "status": "cancelled",
+  "metrics": [],
+  "sample_size": 0,
+  "failure_reason": "user_cancelled",
+  "artifacts": []
+}

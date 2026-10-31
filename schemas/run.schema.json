@@ -1,0 +1,203 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PPRL Completed Run v0.1.0",
+  "description": "Terminal run record, including unsuccessful and cancelled executions.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "experiment_id",
+    "scenario_version",
+    "scenario_sha256",
+    "run_seed",
+    "started_at",
+    "finished_at",
+    "platform",
+    "git_sha",
+    "tool_versions",
+    "status",
+    "metrics",
+    "sample_size",
+    "failure_reason",
+    "artifacts"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0"
+    },
+    "run_id": {
+      "type": "string",
+      "pattern": "^run-[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$(?![\\s\\S])"
+    },
+    "experiment_id": {
+      "type": "string",
+      "pattern": "^exp-[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$(?![\\s\\S])"
+    },
+    "scenario_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "scenario_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "run_seed": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4294967295
+    },
+    "started_at": {
+      "$ref": "#/$defs/utcTimestamp"
+    },
+    "finished_at": {
+      "$ref": "#/$defs/utcTimestamp"
+    },
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "os",
+        "architecture",
+        "python"
+      ],
+      "properties": {
+        "os": {
+          "$ref": "#/$defs/nonempty"
+        },
+        "architecture": {
+          "$ref": "#/$defs/nonempty"
+        },
+        "python": {
+          "$ref": "#/$defs/nonempty"
+        }
+      }
+    },
+    "git_sha": {
+      "type": "string",
+      "pattern": "^([a-f0-9]{40}|[a-f0-9]{64})$(?![\\s\\S])"
+    },
+    "tool_versions": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]*$(?![\\s\\S])"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/nonempty"
+      }
+    },
+    "status": {
+      "enum": [
+        "succeeded",
+        "failed",
+        "cancelled"
+      ]
+    },
+    "metrics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "value",
+          "unit",
+          "result_class"
+        ],
+        "properties": {
+          "name": {
+            "$ref": "#/$defs/nonempty"
+          },
+          "value": {
+            "type": "number"
+          },
+          "unit": {
+            "$ref": "#/$defs/nonempty"
+          },
+          "result_class": {
+            "enum": [
+              "observed",
+              "derived"
+            ]
+          }
+        }
+      }
+    },
+    "sample_size": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "failure_reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "sha256",
+          "size_bytes"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*//)[a-zA-Z0-9_][a-zA-Z0-9_./-]*$(?![\\s\\S])"
+          },
+          "sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "succeeded"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "failure_reason": {
+            "type": "null"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "failure_reason": {
+            "$ref": "#/$defs/nonempty"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$(?![\\s\\S])"
+    },
+    "nonempty": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "utcTimestamp": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$(?![\\s\\S])"
+    }
+  }
+}

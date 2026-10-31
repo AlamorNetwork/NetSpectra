@@ -1,0 +1,38 @@
+{
+  "schema_version": "0.1.0",
+  "run_id": "run-0001",
+  "experiment_id": "exp-0001",
+  "scenario_version": 1,
+  "scenario_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "run_seed": 42,
+  "started_at": "2026-10-31T08:00:00Z",
+  "finished_at": "2026-10-31T08:00:01.250Z",
+  "platform": {
+    "os": "Linux",
+    "architecture": "x86_64",
+    "python": "3.12.12"
+  },
+  "git_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "tool_versions": {
+    "pprl": "0.1.0",
+    "aioquic": "synthetic-example"
+  },
+  "status": "succeeded",
+  "metrics": [
+    {
+      "name": "handshake_duration",
+      "value": 1250,
+      "unit": "ms",
+      "result_class": "observed"
+    }
+  ],
+  "sample_size": 1,
+  "failure_reason": null,
+  "artifacts": [
+    {
+      "path": "logs/run-0001.json",
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "size_bytes": 128
+    }
+  ]
+}

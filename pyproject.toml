@@ -1,0 +1,34 @@
+[build-system]
+requires = ["hatchling==1.32.4"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pprl"
+version = "0.1.0"
+description = "Phoenix Protocol Research Lab — reproducible network protocol research"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = "Apache-2.0"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1,<10",
+    "ruff>=0.11,<0.12",
+    "jsonschema>=4.26,<5",
+    "rfc3339-validator>=0.1.4,<0.2",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["packages/pprl_core/src/pprl_core"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-config --strict-markers"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

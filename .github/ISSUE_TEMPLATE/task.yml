@@ -1,0 +1,33 @@
+name: Research or implementation task
+description: A bounded PPRL task with acceptance criteria and evidence
+title: "[PPRL-M01-W01-Txx] "
+body:
+  - type: input
+    id: roadmap-id
+    attributes:
+      label: Roadmap ID
+      placeholder: PPRL-M01-W01-T01
+    validations:
+      required: true
+  - type: dropdown
+    id: status
+    attributes:
+      label: Status
+      options: [TODO, IN_PROGRESS, BLOCKED, REVIEW, DONE]
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope, assumptions and risks
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria and validation commands
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence, artifacts and reviewer
+      description: Use synthetic or redacted output only; never include secrets or raw captures.

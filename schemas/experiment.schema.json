@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PPRL Experiment v0.1.0",
+  "description": "Synthetic-only isolated experiment configuration; not proof of isolation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "experiment_id",
+    "scenario",
+    "scenario_version",
+    "run_seed",
+    "lab_mode",
+    "consent_scope",
+    "protocol",
+    "network_profile",
+    "repetitions",
+    "artifacts"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0"
+    },
+    "experiment_id": {
+      "type": "string",
+      "pattern": "^exp-[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$(?![\\s\\S])"
+    },
+    "scenario": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,63}$(?![\\s\\S])"
+    },
+    "scenario_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "run_seed": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4294967295
+    },
+    "lab_mode": {
+      "const": "isolated"
+    },
+    "consent_scope": {
+      "const": "synthetic_only"
+    },
+    "protocol": {
+      "enum": [
+        "tcp",
+        "udp",
+        "tls",
+        "quic",
+        "http3"
+      ]
+    },
+    "network_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "latency_ms",
+        "packet_loss_pct",
+        "bandwidth_mbps"
+      ],
+      "properties": {
+        "latency_ms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "packet_loss_pct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "bandwidth_mbps": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "jitter_ms": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "repetitions": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "retain_raw_pcap",
+        "retain_qlog"
+      ],
+      "properties": {
+        "retain_raw_pcap": {
+          "type": "boolean"
+        },
+        "retain_qlog": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

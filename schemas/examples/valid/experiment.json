@@ -1,0 +1,20 @@
+{
+  "schema_version": "0.1.0",
+  "experiment_id": "exp-0001",
+  "scenario": "quic_udp_loss_baseline",
+  "scenario_version": 1,
+  "run_seed": 42,
+  "lab_mode": "isolated",
+  "consent_scope": "synthetic_only",
+  "protocol": "quic",
+  "network_profile": {
+    "latency_ms": 20,
+    "packet_loss_pct": 0,
+    "bandwidth_mbps": 100
+  },
+  "repetitions": 3,
+  "artifacts": {
+    "retain_raw_pcap": false,
+    "retain_qlog": true
+  }
+}
