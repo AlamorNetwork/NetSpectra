@@ -21,6 +21,8 @@ htmlcov/
 *.pcapng
 *.qlog
 artifacts/
+graphify-out/
+.graphify_cache/
 reports/w*/
 !reports/w01/
 !reports/w01/README.md
