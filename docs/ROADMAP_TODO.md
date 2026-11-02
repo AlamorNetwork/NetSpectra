@@ -420,8 +420,23 @@ Do not implement later sprints, collect external user traffic, or access endpoin
 | شناسه | وضعیت | شاهد / مانع |
 |---|---|---|
 | PPRL-M01-W01-T01 | REVIEW | ساختار و README و LICENSE؛ تست نصب و build محلی موفق؛ بازبینی مستقل مانده |
-| PPRL-M01-W01-T02 | BLOCKED | قالب‌ها و قواعد آماده؛ اعمال branch protection نیازمند مخزن GitHub |
+| PPRL-M01-W01-T02 | BLOCKED | قالب‌ها و قواعد آماده؛ مخزن GitHub متصل است؛ branch protection هنوز اعمال نشده |
 | PPRL-M01-W01-T03 | REVIEW | دریافت و نصب عادی با uv sync --locked موفق؛ Ruff و قالب‌بندی و ۱ تست پاس؛ بازبینی مستقل و CI میزبانی‌شده مانده |
 | PPRL-M01-W01-T04 | REVIEW | دو JSON Schema و نمونه‌های مصنوعی معتبر/نامعتبر؛ تست اعتبارسنجی محلی؛ بازبینی مستقل مانده |
+| PPRL-M01-W01-T05 | REVIEW | نصب و ۷۶ تست روی سرور Ubuntu 24 موفق؛ TCP/UDP هرکدام ۲۶ بایت؛ WSL محلی فعلاً لازم نیست؛ بازبینی انسانی مانده |
+| PPRL-M01-W01-T06 | REVIEW | ADR-001 درباره lab-only و رضایت و داده حساس ثبت شد؛ بازبینی مستقل مانده |
 
 جزئیات: `weekly/W01.md` و `../reports/w01/README.md`. موارد بالا هنوز Done نیستند.
+
+## W02 — اجرای اولیه CLI
+
+| شناسه | وضعیت | شاهد / محدودیت |
+|---|---|---|
+| PPRL-M01-W02-T01 | REVIEW | create/list/run/inspect و تست مسیر کامل؛ اجرای فعلی فقط loopback |
+| PPRL-M01-W02-T02 | REVIEW | UUID و UTC و Git SHA و نسخه محیط؛ dirty بودن در summary ثبت می‌شود |
+| PPRL-M01-W02-T03 | REVIEW | snapshot و پوشه Run و manifest هش/اندازه؛ بررسی یکپارچگی خروجی |
+| PPRL-M01-W02-T04 | REVIEW | دو پردازش مستقل client/server برای TCP/UDP روی loopback؛ نه دو ماشین جدا |
+| PPRL-M01-W02-T05 | REVIEW | retry محدود فقط برای خطای موقت؛ deadline کلی و هر تلاش؛ پاک‌سازی پردازش و ثبت تاریخچه |
+| PPRL-M01-W02-T06 | REVIEW | workload مبتنی بر seed و golden vector و replay از snapshot؛ نتیجه و زمان اجرا تضمین یکسان ندارند |
+
+جزئیات: `weekly/W02.md` و `../reports/w02/README.md`. گیت بازبینی مستقل هنوز تأیید نشده است.

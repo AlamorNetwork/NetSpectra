@@ -2,6 +2,24 @@
 
 [فارسی](README.fa.md)
 
+The [W02 CLI](clients/cli/README.md) supports create/list/run/inspect with
+versioned manifests, provenance, checksums and bounded loopback execution.
+Seeded TCP/UDP scenarios use separate local client/server processes, bounded
+retry and immutable Run replay. See `scripts/seeded_replay_smoke.py`.
+
+The [Persian operator panel](clients/web/README.md) adds authenticated
+configuration, real asynchronous runs, cancellation, history and replay.
+It uses the same engine and immutable artifacts as the CLI.
+
+The panel also has a [multi-server lab foundation](docs/ADR/ADR-002-multi-server-lab.md):
+SSH-managed inventory, explicit client/backend/optional-balancer selection, and
+bounded synthetic TCP/UDP runs directly between the selected nodes. Local and
+inter-server results are separate.
+
+Optional [scoped capture](docs/capture.md) records header-only redacted PCAP and
+per-flow CSV on the selected backends/relay, with authenticated downloads and
+per-vantage packet/IPv4-byte counts.
+
 A research lab for reproducible measurements of TCP, TLS, QUIC and HTTP/3 under
 controlled impairment and simulated DPI. Measurements use lab-owned endpoints
 and synthetic traffic by default. Results distinguish observed facts, derived
@@ -9,11 +27,17 @@ metrics, hypotheses and unknowns.
 
 ## Current scope
 
-W01 T01–T04: repository layout, contribution templates, pinned Python,
-dependency configuration, Ruff, pytest and a CI smoke workflow. The package currently
-exposes only its version. Experiment and completed Run JSON Schemas include
+W01 T01–T06: repository layout, contribution templates, pinned Python,
+dependency configuration, Ruff, pytest and a CI smoke workflow.
+Experiment and completed Run JSON Schemas include
 synthetic fixtures and acceptance tests; see [contract guide](schemas/README.md).
-No probes, captures, API, UI or lab provisioning exist.
+The fixed [loopback smoke](lab/README.md) echoes synthetic bytes over TCP/UDP on
+127.0.0.1 only. The panel API exposes this constrained engine; general probes,
+captures and namespace provisioning remain future work.
+A separate Ubuntu 24 server and native Ubuntu CI have passed the smoke
+and all tests; local WSL setup remains optional.
+The scope/data policy is recorded in [ADR-001](docs/ADR/ADR-001-lab-scope-and-data-policy.md),
+pending independent review.
 
 ## Quickstart
 

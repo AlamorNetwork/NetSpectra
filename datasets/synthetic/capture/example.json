@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0.0",
+  "packets": 2,
+  "ip_bytes": 106,
+  "records_seen": 2,
+  "records_excluded": 0,
+  "flows": [
+    {
+      "source_ip": "198.18.0.1",
+      "destination_ip": "198.18.0.2",
+      "source_port": 42000,
+      "destination_port": 28080,
+      "protocol": "udp",
+      "packets": 2,
+      "ip_bytes": 106,
+      "header_bytes": 56
+    }
+  ],
+  "pcap_sha256": "bc2a5e6760ca744838c19b714119055e133e81bd50c73d657fd1be758fcd1969",
+  "redaction": "payload_removed_ips_pseudonymized_options_zeroed",
+  "timestamps": "relative_to_first_accepted_packet",
+  "transport_checksums": "not_verifiable_without_payload",
+  "adapter": "synthetic_fixture",
+  "interface": "synthetic",
+  "node_id": "node-b",
+  "kernel_dropped_packets": 0,
+  "limit_reached": false,
+  "csv_sha256": "134816c2950ff5cc451433a5ab7947d9e4a5e3cd4fe1719599af4dd88226cf44"
+}

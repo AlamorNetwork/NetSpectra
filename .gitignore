@@ -1,4 +1,5 @@
 .venv/
+.tools/
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -20,8 +21,16 @@ htmlcov/
 *.pcapng
 *.qlog
 artifacts/
+graphify-out/
+.graphify_cache/
 reports/w*/
 !reports/w01/
 !reports/w01/README.md
+!reports/w02/
+!reports/w02/README.md
+!reports/w03/
+!reports/w03/README.md
+!reports/w04/
+!reports/w04/README.md
 .DS_Store
 Thumbs.db

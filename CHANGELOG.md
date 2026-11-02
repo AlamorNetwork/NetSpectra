@@ -2,6 +2,17 @@
 
 ## 0.1.0 — Unreleased
 
+- Add independent local client/server endpoints for seeded TCP/UDP, versioned
+  SHA256 workloads, transient-only retries and immutable snapshot replay.
+- Reap endpoint processes on timeout/cancellation; add cross-platform golden
+  vector and seeded replay smoke to Ubuntu/Windows CI.
+- Add local create/list/run/inspect CLI, configuration snapshots, UUID/UTC/source
+  metadata and checksummed artifact manifests for bounded loopback runs.
+- Persist timeout/failure/cancellation categories; reject unsupported scenarios
+  and detect artifact changes. Add CLI smoke to Windows/Ubuntu CI.
+- Add bounded IPv4 loopback TCP/UDP smoke and timeout/cancellation cleanup tests.
+- Run loopback smoke in Ubuntu/Windows CI; document pending local WSL setup.
+- Record proposed lab/consent/data policy in ADR-001 for independent review.
 - Add v0.1.0 Experiment and terminal Run JSON Schemas, synthetic examples and
   contract validation tests including RFC3339 calendar validation.
 - Add W01 T01–T03 repository foundation, bilingual quickstart and licensing.

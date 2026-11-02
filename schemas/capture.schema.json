@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pprl:schema:capture:1.0.0",
+  "title": "Redacted capture metadata 1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "packets", "ip_bytes", "records_seen", "records_excluded", "flows", "pcap_sha256", "redaction", "timestamps", "transport_checksums"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "packets": {"type": "integer", "minimum": 0, "maximum": 2000},
+    "ip_bytes": {"type": "integer", "minimum": 0},
+    "records_seen": {"type": "integer", "minimum": 0, "maximum": 2000},
+    "records_excluded": {"type": "integer", "minimum": 0, "maximum": 2000},
+    "flows": {"type": "array", "maxItems": 2000, "items": {"$ref": "#/$defs/flow"}},
+    "pcap_sha256": {"$ref": "#/$defs/hash"},
+    "csv_sha256": {"$ref": "#/$defs/hash"},
+    "redaction": {"const": "payload_removed_ips_pseudonymized_options_zeroed"},
+    "timestamps": {"const": "relative_to_first_accepted_packet"},
+    "transport_checksums": {"const": "not_verifiable_without_payload"},
+    "kernel_dropped_packets": {"type": ["integer", "null"], "minimum": 0},
+    "adapter": {"enum": ["tcpdump", "synthetic_fixture"]},
+    "interface": {"enum": ["any", "synthetic"]},
+    "limit_reached": {"type": "boolean"},
+    "node_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,31}$"}
+  },
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "address": {"type": "string", "format": "ipv4", "pattern": "^198\\.(18|19)\\."},
+    "flow": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source_ip", "destination_ip", "source_port", "destination_port", "protocol", "packets", "ip_bytes", "header_bytes"],
+      "properties": {
+        "source_ip": {"$ref": "#/$defs/address"}, "destination_ip": {"$ref": "#/$defs/address"},
+        "source_port": {"type": "integer", "minimum": 0, "maximum": 65535},
+        "destination_port": {"type": "integer", "minimum": 0, "maximum": 65535},
+        "protocol": {"enum": ["tcp", "udp"]},
+        "packets": {"type": "integer", "minimum": 1, "maximum": 2000},
+        "ip_bytes": {"type": "integer", "minimum": 0}, "header_bytes": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}

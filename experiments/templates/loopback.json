@@ -1,0 +1,20 @@
+{
+  "schema_version": "0.1.0",
+  "experiment_id": "exp-loopback-demo",
+  "scenario": "loopback_echo",
+  "scenario_version": 1,
+  "run_seed": 42,
+  "lab_mode": "isolated",
+  "consent_scope": "synthetic_only",
+  "protocol": "tcp",
+  "network_profile": {
+    "latency_ms": 0,
+    "packet_loss_pct": 0,
+    "bandwidth_mbps": 100
+  },
+  "repetitions": 3,
+  "artifacts": {
+    "retain_raw_pcap": false,
+    "retain_qlog": false
+  }
+}

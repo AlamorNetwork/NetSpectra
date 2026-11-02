@@ -26,4 +26,7 @@ jobs:
       - run: uv run --locked ruff check .
       - run: uv run --locked ruff format --check .
       - run: uv run --locked pytest
+      - run: uv run --locked python -m pprl_core.loopback
+      - run: uv run --locked python scripts/cli_smoke.py
+      - run: uv run --locked python scripts/seeded_replay_smoke.py
       - run: uv build

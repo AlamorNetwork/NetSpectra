@@ -9,18 +9,33 @@ description = "Phoenix Protocol Research Lab — reproducible network protocol r
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 license = "Apache-2.0"
-dependencies = []
+dependencies = [
+    "jsonschema>=4.26,<5",
+    "rfc3339-validator>=0.1.4,<0.2",
+    "fastapi>=0.133,<0.134",
+    "uvicorn>=0.41,<0.42",
+    "aioquic>=1.3,<2",
+]
+
+[project.scripts]
+pprl = "pprl_core.cli:main"
+pprl-panel = "pprl_core.panel:main"
 
 [dependency-groups]
 dev = [
     "pytest>=9.1,<10",
     "ruff>=0.11,<0.12",
-    "jsonschema>=4.26,<5",
-    "rfc3339-validator>=0.1.4,<0.2",
+    "httpx>=0.28,<0.29",
 ]
 
 [tool.hatch.build.targets.wheel]
 packages = ["packages/pprl_core/src/pprl_core"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"schemas/experiment.schema.json" = "pprl_core/schemas/experiment.schema.json"
+"schemas/run.schema.json" = "pprl_core/schemas/run.schema.json"
+"schemas/capture.schema.json" = "pprl_core/schemas/capture.schema.json"
+"clients/web/assets" = "pprl_core/web_assets"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,0 +1,19 @@
+# Only this project's source and documentation belong in its knowledge graph.
+artifacts/
+.venv/
+.tools/
+dist/
+build/
+graphify-out/
+.graphify_cache/
+__pycache__/
+*.pyc
+.env
+.env.*
+*.key
+*.pem
+*.crt
+*.pcap
+*.pcapng
+*.qlog
+clients/web/assets/fonts/
