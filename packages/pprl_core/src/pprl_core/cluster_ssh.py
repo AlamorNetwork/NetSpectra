@@ -4,6 +4,7 @@ import asyncio
 import base64
 import hashlib
 import json
+import os
 import re
 import shlex
 import subprocess
@@ -16,10 +17,11 @@ REPOSITORY = "https://github.com/AlamorNetwork/NetSpectra.git"
 
 
 class SSH:
-    def __init__(self, root: Path):
+    def __init__(self, root: Path, identities: dict[str, Path] | None = None):
         self.directory = cli._path(root, "cluster-ssh")
         self.directory.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.key = self.directory / "id_ed25519"
+        self.identities = dict(identities or {})
 
     def public_key(self, create: bool = False) -> str | None:
         if create and not self.key.exists():
@@ -84,7 +86,8 @@ class SSH:
     def command(self, node: Node, command: list[str]) -> list[str]:
         if not node.host_key:
             raise cli.CLIError("host_key_required")
-        if not self.key.exists():
+        identity = self.identities.get(node.node_id, self.key)
+        if not identity.is_file():
             raise cli.CLIError("controller_key_required")
         known_hosts = self.directory / (node.node_id + "-known_hosts")
         known_hosts.write_text(
@@ -94,7 +97,7 @@ class SSH:
         return [
             "ssh",
             "-F",
-            "/dev/null",
+            os.devnull,
             "-T",
             "-o",
             "BatchMode=yes",
@@ -103,7 +106,7 @@ class SSH:
             "-o",
             "StrictHostKeyChecking=yes",
             "-o",
-            "GlobalKnownHostsFile=/dev/null",
+            f"GlobalKnownHostsFile={os.devnull}",
             "-o",
             f"UserKnownHostsFile={known_hosts}",
             "-o",
@@ -113,7 +116,7 @@ class SSH:
             "-o",
             "ServerAliveCountMax=2",
             "-i",
-            str(self.key),
+            str(identity),
             "-p",
             str(node.ssh_port),
             f"{node.ssh_user}@{node.address}",
